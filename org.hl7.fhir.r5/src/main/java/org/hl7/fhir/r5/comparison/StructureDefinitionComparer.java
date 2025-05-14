@@ -1307,7 +1307,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
     StringBuilder csvData = new StringBuilder();
-    csvData.append("Path,Label,Short,Definition,Comment,Requirements,Must Support,Min,Max,Type\n"); // CSV header
+    csvData.append("Path,L Type,L Must Support,L Min,L Max,L Description/Constraints\n"); // CSV header
 
     genElementCompCsv(csvData, comp.combined);
 
@@ -1316,22 +1316,45 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   private void genElementCompCsv(StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
     String path = combined.either().getDef().getPath();
-    ElementDefinition def = combined.either().getDef();
+    if (combined.hasLeft()) {
+      System.out.println("TECHTEAM combined.hasLeft");
+      ElementDefinition leftDef = combined.getLeft().getDef();
 
-    csvData.append(escapeCsv(path)).append(",");
-    csvData.append(escapeCsv(def.getLabel())).append(",");
-    csvData.append(escapeCsv(def.getShort())).append(",");
-    csvData.append(escapeCsv(def.getDefinition())).append(",");
-    csvData.append(escapeCsv(def.getComment())).append(",");
-    csvData.append(escapeCsv(def.getRequirements())).append(",");
-    csvData.append(escapeCsv(Boolean.toString(def.getMustSupport()))).append(",");
-    csvData.append(escapeCsv(Integer.toString(def.getMin()))).append(",");
-    csvData.append(escapeCsv(def.getMax())).append(",");
-    csvData.append(escapeCsv(typeCode(new DefinitionNavigator(session.getContextLeft(), combined.either().getSrc(), false, false)))).append("\n");
+      csvData.append(escapeCsv(path)).append(",");
+      csvData.append(escapeCsv(typeCode(new DefinitionNavigator(session.getContextLeft(), combined.getLeft().getSrc(), false, false)))).append(",");
+      csvData.append(escapeCsv(Boolean.toString(leftDef.getMustSupport()))).append(",");
+      csvData.append(escapeCsv(Integer.toString(leftDef.getMin()))).append(",");
+      csvData.append(escapeCsv(leftDef.getMax())).append(",");
+      csvData.append(escapeCsv(leftDef.getShort() + "\n" + renderDescriptionConstraints(leftDef.getConstraint()))).append("\n");
 
-    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
-      genElementCompCsv(csvData, child);
+      for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+        genElementCompCsv(csvData, child);
+      }
+    // } else if (combined.hasRight()) {
+    //   System.out.println("TECHTEAM combined.hasRight");
+    //   ElementDefinition rightDef = combined.getRight().getDef();
+    //
+    //   csvData.append(escapeCsv(path)).append(",");
+    //   csvData.append(escapeCsv(typeCode(new DefinitionNavigator(session.getContextLeft(), combined.getLeft().getSrc(), false, false)))).append(",");
+    //   csvData.append(escapeCsv(Boolean.toString(rightDef.getMustSupport()))).append(",");
+    //   csvData.append(escapeCsv(Integer.toString(rightDef.getMin()))).append(",");
+    //   csvData.append(escapeCsv(rightDef.getMax())).append(",");
+    //   csvData.append(escapeCsv(rightDef.getShort() + "\n" + renderDescriptionConstraints(rightDef.getConstraint()))).append("\n");
+    //
+    //   for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+    //     genElementCompCsv(csvData, child);
+    //   }
+
     }
+  }
+
+  private String renderDescriptionConstraints(List<ElementDefinitionConstraintComponent> constraints) {
+    StringBuilder sb = new StringBuilder();
+    constraints.forEach(constraint -> {
+      sb.append(constraints.toString()).append("\n");
+    });
+    return sb.toString();
+
   }
 
   private String escapeCsv(String value) {
@@ -1346,6 +1369,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   public XhtmlNode renderStructure(ProfileComparison comp, String id, String prefix, String corePath) throws FHIRException, IOException {
     HierarchicalTableGenerator gen = new HierarchicalTableGenerator(session.getI18n(), Utilities.path("[tmp]", "compare"), false, true, "cmp");
     TableModel model = gen.initComparisonTable(corePath, id);
+    System.out.println("TECHTEAM render structure");
     genElementComp(null /* come back to this later */, null /* come back to this later */, gen, model.getRows(), comp.combined, corePath, prefix, null, true);
     return gen.generate(model, prefix, 0, null);
   }
@@ -1427,11 +1451,13 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
         nc = sdrRight.genElementNameCell(gen, combined.getRight().getDef(),  "??", true, corePath, prefix, root, false, false, combined.getRight().getSrc(), typesRow, row, false, ext, used , ref, sName, null);
       }
       if (combined.hasLeft()) {
+        System.out.println("TECHTEAM getElementComp left " + combined.getLeft().getDef().getName());
         frame(sdrLeft.genElementCells(new RenderingStatus(), gen, combined.getLeft().getDef(),  "??", true, corePath, prefix, root, false, false, combined.getLeft().getSrc(), typesRow, row, true, ext, used , ref, nc, false, false, sdrLeft.getContext(), children.size() > 0, defPath, anchorPrefix, new ArrayList<ElementDefinition>(), null), leftColor);
       } else {
         frame(spacers(row, 4, gen), leftColor);
       }
       if (combined.hasRight()) {
+        System.out.println("TECHTEAM getElementComp right " + combined.getRight().getDef().getName());
         frame(sdrRight.genElementCells(new RenderingStatus(), gen, combined.getRight().getDef(), "??", true, corePath, prefix, root, false, false, combined.getRight().getSrc(), typesRow, row, true, ext, used, ref, nc, false, false, sdrRight.getContext(), children.size() > 0, defPath, anchorPrefix, new ArrayList<ElementDefinition>(), null), rightColor);
       } else {
         frame(spacers(row, 4, gen), rightColor);
