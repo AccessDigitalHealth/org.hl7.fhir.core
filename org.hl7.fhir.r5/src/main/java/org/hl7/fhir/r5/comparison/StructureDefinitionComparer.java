@@ -1,11 +1,7 @@
 package org.hl7.fhir.r5.comparison;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.hl7.fhir.exceptions.DefinitionException;
 import org.hl7.fhir.exceptions.FHIRException;
@@ -1307,7 +1303,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
     StringBuilder csvData = new StringBuilder();
-    csvData.append("Path,L Type,L Must Support,L Min,L Max,L Description/Constraints\n"); // CSV header
+    csvData.append("Path,L Must Support,L Min,L Max,L Type,L Description/Constraints\n"); // CSV header
 
     genElementCompCsv(csvData, comp.combined);
 
@@ -1321,11 +1317,14 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       ElementDefinition leftDef = combined.getLeft().getDef();
 
       csvData.append(escapeCsv(path)).append(",");
-      csvData.append(escapeCsv(typeCode(new DefinitionNavigator(session.getContextLeft(), combined.getLeft().getSrc(), false, false)))).append(",");
       csvData.append(escapeCsv(Boolean.toString(leftDef.getMustSupport()))).append(",");
       csvData.append(escapeCsv(Integer.toString(leftDef.getMin()))).append(",");
       csvData.append(escapeCsv(leftDef.getMax())).append(",");
-      csvData.append(escapeCsv(leftDef.getShort() + "\n" + renderDescriptionConstraints(leftDef.getConstraint()))).append("\n");
+      csvData.append(escapeCsv(typeCode(new DefinitionNavigator(session.getContextLeft(), combined.getLeft().getSrc(), false, false)))).append(",");
+      csvData.append(escapeCsv(leftDef.getShort()
+              + "\n" 
+              + renderBindingCsv(leftDef.getBinding())))
+              .append("\n");
 
       for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
         genElementCompCsv(csvData, child);
@@ -1348,11 +1347,18 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
   }
 
-  private String renderDescriptionConstraints(List<ElementDefinitionConstraintComponent> constraints) {
+  private String renderBindingCsv(ElementDefinitionBindingComponent bindings) {
     StringBuilder sb = new StringBuilder();
-    constraints.forEach(constraint -> {
-      sb.append(constraints.toString()).append("\n");
-    });
+    if (bindings.getValueSet() != null) {
+      sb.append("Bindings: ").append(bindings.getValueSet()).append(": ").append("("+bindings.getStrength().getDisplay()+"): ")
+        .append(bindings.getDescription())
+        .append("\n");
+    }
+    if (bindings.getAdditional() != null || !bindings.getAdditional().isEmpty()) {
+      bindings.getAdditional().forEach(additional -> {
+        sb.append("Additional Bindings: ").append(additional).append(" Purpose: ").append(additional.getPurpose());
+      });
+    }
     return sb.toString();
 
   }
