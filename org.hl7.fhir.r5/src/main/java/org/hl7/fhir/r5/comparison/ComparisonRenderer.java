@@ -260,6 +260,9 @@ public class ComparisonRenderer implements IEvaluationContext {
     vars.put("rightUrl", new StringType(comp.getRight().getUrl()));
     vars.put("errors", new StringType(new XhtmlComposer(true).compose(cs.renderErrors(comp))));
     vars.put("metadata", new StringType(new XhtmlComposer(true).compose(cs.renderMetadata(comp, "", ""))));
+    System.out.println("TECHTEAM render csv");
+    String csv = cs.renderStructureCsv(comp);
+    FileUtilities.stringToFile(csv, file("sd-comparison.csv"));
     vars.put("structure", new StringType(new XhtmlComposer(true).compose(cs.renderStructure(comp, "", "", "http://hl7.org/fhir"))));
     String union = new XhtmlComposer(true).compose(cs.renderUnion(comp, "", folder, "http://hl7.org/fhir"));
     String intersection = new XhtmlComposer(true).compose(cs.renderIntersection(comp, "", folder, "http://hl7.org/fhir"));

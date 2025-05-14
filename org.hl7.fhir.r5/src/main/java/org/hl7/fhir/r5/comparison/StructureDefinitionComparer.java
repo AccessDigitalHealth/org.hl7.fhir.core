@@ -1305,6 +1305,44 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     return ctxt.fetchResource(ValueSet.class, vsRef, src);
   }
 
+  public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
+    StringBuilder csvData = new StringBuilder();
+    csvData.append("Path,Label,Short,Definition,Comment,Requirements,Must Support,Min,Max,Type\n"); // CSV header
+
+    genElementCompCsv(csvData, comp.combined);
+
+    return csvData.toString();
+  }
+
+  private void genElementCompCsv(StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
+    String path = combined.either().getDef().getPath();
+    ElementDefinition def = combined.either().getDef();
+
+    csvData.append(escapeCsv(path)).append(",");
+    csvData.append(escapeCsv(def.getLabel())).append(",");
+    csvData.append(escapeCsv(def.getShort())).append(",");
+    csvData.append(escapeCsv(def.getDefinition())).append(",");
+    csvData.append(escapeCsv(def.getComment())).append(",");
+    csvData.append(escapeCsv(def.getRequirements())).append(",");
+    csvData.append(escapeCsv(Boolean.toString(def.getMustSupport()))).append(",");
+    csvData.append(escapeCsv(Integer.toString(def.getMin()))).append(",");
+    csvData.append(escapeCsv(def.getMax())).append(",");
+    csvData.append(escapeCsv(typeCode(new DefinitionNavigator(session.getContextLeft(), combined.either().getSrc(), false, false)))).append("\n");
+
+    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+      genElementCompCsv(csvData, child);
+    }
+  }
+
+  private String escapeCsv(String value) {
+    if (value == null) return "";
+    if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+      value = value.replace("\"", "\"\"");
+      return "\"" + value + "\"";
+    }
+    return value;
+  }
+
   public XhtmlNode renderStructure(ProfileComparison comp, String id, String prefix, String corePath) throws FHIRException, IOException {
     HierarchicalTableGenerator gen = new HierarchicalTableGenerator(session.getI18n(), Utilities.path("[tmp]", "compare"), false, true, "cmp");
     TableModel model = gen.initComparisonTable(corePath, id);
