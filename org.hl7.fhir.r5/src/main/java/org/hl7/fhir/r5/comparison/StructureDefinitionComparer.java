@@ -1303,7 +1303,8 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
     StringBuilder csvData = new StringBuilder();
-    csvData.append("Path,L Must Support,L Min,L Max,L Type,L Description/Constraints\n"); // CSV header
+    csvData.append("Path,L Must Support,L Min,L Max,L Type,L Description/Constraints,"); // CSV header
+    csvData.append("Path,R Must Support,R Min,R Max,R Type,R Description/Constraints\n"); // CSV header
 
     genElementCompCsv(csvData, comp.combined);
 
@@ -1311,46 +1312,61 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private void genElementCompCsv(StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
-    String path = combined.either().getDef().getPath();
+    combined.getMessages().forEach(message -> {
+      System.out.println("TECHTEAM message: " + message);
+    });
+
     if (combined.hasLeft()) {
       System.out.println("TECHTEAM combined.hasLeft");
-      ElementDefinition leftDef = combined.getLeft().getDef();
-
-      csvData.append(escapeCsv(path)).append(",");
-      csvData.append(escapeCsv(Boolean.toString(leftDef.getMustSupport()))).append(",");
-      csvData.append(escapeCsv(Integer.toString(leftDef.getMin()))).append(",");
-      csvData.append(escapeCsv(leftDef.getMax())).append(",");
-      csvData.append(escapeCsv(typeCode(new DefinitionNavigator(session.getContextLeft(), combined.getLeft().getSrc(), false, false)))).append(",");
-      csvData.append(escapeCsv(leftDef.getShort()
-              + "\n" 
-              + renderBindingCsv(leftDef.getBinding())))
-              .append("\n");
-
-      for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
-        genElementCompCsv(csvData, child);
-      }
-    // } else if (combined.hasRight()) {
-    //   System.out.println("TECHTEAM combined.hasRight");
-    //   ElementDefinition rightDef = combined.getRight().getDef();
-    //
-    //   csvData.append(escapeCsv(path)).append(",");
-    //   csvData.append(escapeCsv(typeCode(new DefinitionNavigator(session.getContextLeft(), combined.getLeft().getSrc(), false, false)))).append(",");
-    //   csvData.append(escapeCsv(Boolean.toString(rightDef.getMustSupport()))).append(",");
-    //   csvData.append(escapeCsv(Integer.toString(rightDef.getMin()))).append(",");
-    //   csvData.append(escapeCsv(rightDef.getMax())).append(",");
-    //   csvData.append(escapeCsv(rightDef.getShort() + "\n" + renderDescriptionConstraints(rightDef.getConstraint()))).append("\n");
-    //
-    //   for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
-    //     genElementCompCsv(csvData, child);
-    //   }
-
+      fillCsvRow(combined.getLeft().getDef(), csvData, combined);
+    } else {
+      System.out.println("TECHTEAM !combined.hasLeft");
+      csvData.append(",").append(",").append(",").append(",").append(",").append(",");
     }
+    if (combined.hasRight()) {
+      System.out.println("TECHTEAM combined.hasRight");
+      fillCsvRow(combined.getRight().getDef(), csvData, combined);
+    } else {
+      System.out.println("TECHTEAM !combined.hasRight");
+      csvData.append(",").append(",").append(",").append(",").append(",").append(",");
+    }
+
+    csvData.append("\n");
+
+    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+      genElementCompCsv(csvData, child);
+    }
+  }
+
+  private void fillCsvRow(ElementDefinition def, StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
+    String path = combined.either().getDef().getPath();
+    System.out.println("TECHTEAM path: " + path);
+
+    csvData.append(escapeCsv(path)).append(",");
+    csvData.append(escapeCsv(Boolean.toString(def.getMustSupport()))).append(",");
+    csvData.append(escapeCsv(Integer.toString(def.getMin()))).append(",");
+    csvData.append(escapeCsv(def.getMax())).append(",");
+    csvData.append(renderTypeCsv(def.getType())).append(",");
+    csvData.append(escapeCsv(def.getShort()
+        + "\n"
+        + renderBindingCsv(def.getBinding())))
+        .append(",");
+
+
+  }
+
+  private String renderTypeCsv(List<TypeRefComponent> typeRefComponents) {
+    StringBuilder sb = new StringBuilder();
+    typeRefComponents.forEach(type -> {
+      sb.append(type.getCode());
+    });
+   return sb.toString();
   }
 
   private String renderBindingCsv(ElementDefinitionBindingComponent bindings) {
     StringBuilder sb = new StringBuilder();
     if (bindings.getValueSet() != null) {
-      sb.append("Bindings: ").append(bindings.getValueSet()).append(": ").append("("+bindings.getStrength().getDisplay()+"): ")
+      sb.append("Bindings: ").append(bindings.getValueSet()).append(" ("+bindings.getStrength().getDisplay()+"): ")
         .append(bindings.getDescription())
         .append("\n");
     }
