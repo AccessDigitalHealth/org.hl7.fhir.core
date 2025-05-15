@@ -1304,7 +1304,8 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
     StringBuilder csvData = new StringBuilder();
     csvData.append("Path,L Must Support,L Min,L Max,L Type,L Description/Constraints,"); // CSV header
-    csvData.append("Path,R Must Support,R Min,R Max,R Type,R Description/Constraints\n"); // CSV header
+    csvData.append("Path,R Must Support,R Min,R Max,R Type,R Description/Constraints,"); // CSV header
+    csvData.append("Comments\n");
 
     genElementCompCsv(csvData, comp.combined);
 
@@ -1312,24 +1313,21 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private void genElementCompCsv(StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
-    combined.getMessages().forEach(message -> {
-      System.out.println("TECHTEAM message: " + message);
-    });
 
     if (combined.hasLeft()) {
-      System.out.println("TECHTEAM combined.hasLeft");
       fillCsvRow(combined.getLeft().getDef(), csvData, combined);
     } else {
-      System.out.println("TECHTEAM !combined.hasLeft");
       csvData.append(",").append(",").append(",").append(",").append(",").append(",");
     }
     if (combined.hasRight()) {
-      System.out.println("TECHTEAM combined.hasRight");
       fillCsvRow(combined.getRight().getDef(), csvData, combined);
     } else {
-      System.out.println("TECHTEAM !combined.hasRight");
       csvData.append(",").append(",").append(",").append(",").append(",").append(",");
     }
+
+    combined.getMessages().forEach(validationMessage -> {
+      csvData.append(validationMessage.getMessage()).append("\n");
+    });
 
     csvData.append("\n");
 
@@ -1340,7 +1338,6 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   private void fillCsvRow(ElementDefinition def, StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
     String path = combined.either().getDef().getPath();
-    System.out.println("TECHTEAM path: " + path);
 
     csvData.append(escapeCsv(path)).append(",");
     csvData.append(escapeCsv(Boolean.toString(def.getMustSupport()))).append(",");
@@ -1391,7 +1388,6 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   public XhtmlNode renderStructure(ProfileComparison comp, String id, String prefix, String corePath) throws FHIRException, IOException {
     HierarchicalTableGenerator gen = new HierarchicalTableGenerator(session.getI18n(), Utilities.path("[tmp]", "compare"), false, true, "cmp");
     TableModel model = gen.initComparisonTable(corePath, id);
-    System.out.println("TECHTEAM render structure");
     genElementComp(null /* come back to this later */, null /* come back to this later */, gen, model.getRows(), comp.combined, corePath, prefix, null, true);
     return gen.generate(model, prefix, 0, null);
   }
@@ -1473,13 +1469,11 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
         nc = sdrRight.genElementNameCell(gen, combined.getRight().getDef(),  "??", true, corePath, prefix, root, false, false, combined.getRight().getSrc(), typesRow, row, false, ext, used , ref, sName, null);
       }
       if (combined.hasLeft()) {
-        System.out.println("TECHTEAM getElementComp left " + combined.getLeft().getDef().getName());
         frame(sdrLeft.genElementCells(new RenderingStatus(), gen, combined.getLeft().getDef(),  "??", true, corePath, prefix, root, false, false, combined.getLeft().getSrc(), typesRow, row, true, ext, used , ref, nc, false, false, sdrLeft.getContext(), children.size() > 0, defPath, anchorPrefix, new ArrayList<ElementDefinition>(), null), leftColor);
       } else {
         frame(spacers(row, 4, gen), leftColor);
       }
       if (combined.hasRight()) {
-        System.out.println("TECHTEAM getElementComp right " + combined.getRight().getDef().getName());
         frame(sdrRight.genElementCells(new RenderingStatus(), gen, combined.getRight().getDef(), "??", true, corePath, prefix, root, false, false, combined.getRight().getSrc(), typesRow, row, true, ext, used, ref, nc, false, false, sdrRight.getContext(), children.size() > 0, defPath, anchorPrefix, new ArrayList<ElementDefinition>(), null), rightColor);
       } else {
         frame(spacers(row, 4, gen), rightColor);
