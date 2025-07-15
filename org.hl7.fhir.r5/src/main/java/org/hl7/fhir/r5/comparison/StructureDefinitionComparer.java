@@ -275,6 +275,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     checkMinMax(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     checkCardinalityBreak(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     checkDatatypeBreak(comp, res, path, left.current().getType(), right.current().getType());
+    checkMustSupportBreak(comp, res, path, left.current().getMustSupport(), right.current().getMustSupport());
     superset.setMin(unionMin(leftMin, rightMin));
     superset.setMax(unionMax(leftMax, rightMax, left.current().getMax(), right.current().getMax()));
     subset.setMin(intersectMin(leftMin, rightMin));
@@ -822,6 +823,15 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       return left;
     else
       return right;
+  }
+
+  private void checkMustSupportBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, boolean left, boolean right) {
+    // "if Core.mustSupport = true and not IG.mustSupport = true" where Core is left and IG is right
+    if (left) {
+      if (!right) {
+        vm(IssueSeverity.ERROR, "MustSupport", path, comp.getMessages(), res.getMessages());
+      }
+    }
   }
 
   private void checkDatatypeBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, List<TypeRefComponent> left, List<TypeRefComponent> right) {
