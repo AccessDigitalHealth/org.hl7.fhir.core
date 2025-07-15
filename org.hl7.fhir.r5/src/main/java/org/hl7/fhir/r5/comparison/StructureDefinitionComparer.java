@@ -266,6 +266,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     int rightMax = "*".equals(right.current().getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(right.current().getMax(), -1);
     
     checkMinMax(comp, res, path, leftMin, rightMin, leftMax, rightMax);
+    checkCardinalityBreak(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     superset.setMin(unionMin(leftMin, rightMin));
     superset.setMax(unionMax(leftMax, rightMax, left.current().getMax(), right.current().getMax()));
     subset.setMin(intersectMin(leftMin, rightMin));
@@ -814,6 +815,16 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       return right;
   }
 
+  private void checkCardinalityBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, int leftMin, int rightMin, int leftMax, int rightMax) {
+      // if IG.min < Core.min or IG.max > Core.max where IG is right and Core is left.
+    if (rightMin < leftMin) {
+        vm(IssueSeverity.ERROR, "Cardinality", path, comp.getMessages(), res.getMessages());
+    }
+    if (rightMax > leftMax) {
+        vm(IssueSeverity.ERROR, "Cardinality", path, comp.getMessages(), res.getMessages());
+    }
+  }
+
   private void checkMinMax(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, int leftMin, int rightMin, int leftMax, int rightMax) {
     if (leftMin != rightMin) {
       if (leftMin == 0) {
@@ -1326,7 +1337,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
 
     combined.getMessages().forEach(validationMessage -> {
-      csvData.append(validationMessage.getMessage()).append("\n");
+      csvData.append(validationMessage.getMessage()).append(" | ");
     });
 
     csvData.append("\n");
