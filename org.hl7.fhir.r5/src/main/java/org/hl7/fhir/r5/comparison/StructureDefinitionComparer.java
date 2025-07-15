@@ -1398,7 +1398,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   private String renderTypeCsv(List<TypeRefComponent> typeRefComponents) {
     StringBuilder sb = new StringBuilder();
     typeRefComponents.forEach(type -> {
-      sb.append(type.getCode());
+      sb.append(type.toString());
     });
    return sb.toString();
   }
