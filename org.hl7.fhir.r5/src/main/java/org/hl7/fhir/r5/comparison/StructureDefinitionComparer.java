@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.*;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.collections4.CollectionUtils;
 import org.hl7.fhir.exceptions.DefinitionException;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.exceptions.FHIRFormatError;
@@ -49,6 +51,9 @@ import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.Cell;
 import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.Row;
 import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.TableGenerationMode;
 import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.TableModel;
+
+import ca.uhn.fhir.util.CollectionUtil;
+
 import org.hl7.fhir.utilities.xhtml.XhtmlNode;
 
 import kotlin.NotImplementedError;
@@ -269,6 +274,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     
     checkMinMax(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     checkCardinalityBreak(comp, res, path, leftMin, rightMin, leftMax, rightMax);
+    checkDatatypeBreak(comp, res, path, left.current().getType(), right.current().getType());
     superset.setMin(unionMin(leftMin, rightMin));
     superset.setMax(unionMax(leftMax, rightMax, left.current().getMax(), right.current().getMax()));
     subset.setMin(intersectMin(leftMin, rightMin));
@@ -277,6 +283,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     superset.getType().addAll(unionTypes(comp, res, path, left.current().getType(), right.current().getType(), left.getStructure(), right.getStructure()));
     subset.getType().addAll(intersectTypes(comp, res, subset, path, left.current().getType(), right.current().getType()));
     rule(comp, res, !subset.getType().isEmpty() || (!left.current().hasType() && !right.current().hasType()), path, "Type Mismatch: "+typeCode(left)+" vs "+typeCode(right));
+    // rule(comp, res, !CollectionUtils.isEqualCollection(left.current().getType(), right.current().getType()), path, "DataType");
     //    <fixed[x]><!-- ?? 0..1 * Value must be exactly this --></fixed[x]>
     //    <pattern[x]><!-- ?? 0..1 * Value must have at least these property values --></pattern[x]>
     superset.setMaxLengthElement(unionMaxLength(left.current().getMaxLength(), right.current().getMaxLength()));
@@ -817,6 +824,28 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       return right;
   }
 
+  private void checkDatatypeBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, List<TypeRefComponent> left, List<TypeRefComponent> right) {
+    left.stream().sorted();
+    right.stream().sorted();
+    if (!left.isEmpty() && !right.isEmpty()){
+      boolean matchFound = false;
+      for (TypeRefComponent leftType : left) {
+        for (TypeRefComponent rightType : right) {
+          if (leftType.toString().equals(rightType.toString())) {
+            matchFound = true;
+            break;
+          }     
+        }
+        if (matchFound) {
+          break;
+        }
+      }
+      if (!matchFound) {
+        vm(IssueSeverity.ERROR, "DataType", path, comp.getMessages(), res.getMessages());
+      }
+    }
+  }
+
   private void checkCardinalityBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, int leftMin, int rightMin, int leftMax, int rightMax) {
       // if IG.min < Core.min or IG.max > Core.max where IG is right and Core is left.
     if (rightMin < leftMin) {
@@ -826,6 +855,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
         vm(IssueSeverity.ERROR, "Cardinality", path, comp.getMessages(), res.getMessages());
     }
   }
+
 
   private void checkMinMax(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, int leftMin, int rightMin, int leftMax, int rightMax) {
     if (leftMin != rightMin) {
