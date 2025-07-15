@@ -827,6 +827,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private void checkBindingBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, ElementDefinitionBindingComponent left, ElementDefinitionBindingComponent right) {
+    // Core required binding
    if (BindingStrength.REQUIRED.equals(left.getStrength())) {
     if (BindingStrength.REQUIRED.equals(right.getStrength())) {
         if (!left.getValueSet().equals(right.getValueSet())) {
@@ -837,9 +838,8 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
      } else {
       vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
      }
-   }
-
-   if (BindingStrength.EXTENSIBLE.equals(left.getStrength())) {
+    // Core extensible binding
+   } else if (BindingStrength.EXTENSIBLE.equals(left.getStrength())) {
     if (BindingStrength.EXTENSIBLE.equals(right.getStrength())) {
         if (!left.getValueSet().equals(right.getValueSet())) {
           vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
@@ -850,6 +850,10 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     else {
       vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
      }
+   } else { // Core other binding
+    if (!left.getValueSet().equals(right.getValueSet())) {
+        vm(IssueSeverity.WARNING, "Binding - Default(NonBreak)", path, comp.getMessages(), res.getMessages());
+      }
    }
 
    }
