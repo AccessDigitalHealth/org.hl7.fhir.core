@@ -276,6 +276,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     checkCardinalityBreak(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     checkDatatypeBreak(comp, res, path, left.current().getType(), right.current().getType());
     checkMustSupportBreak(comp, res, path, left.current().getMustSupport(), right.current().getMustSupport());
+    checkBindingBreak(comp, res, path, left.current().getBinding(), right.current().getBinding());
     superset.setMin(unionMin(leftMin, rightMin));
     superset.setMax(unionMax(leftMax, rightMax, left.current().getMax(), right.current().getMax()));
     subset.setMin(intersectMin(leftMin, rightMin));
@@ -824,6 +825,34 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     else
       return right;
   }
+
+  private void checkBindingBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, ElementDefinitionBindingComponent left, ElementDefinitionBindingComponent right) {
+   if (BindingStrength.REQUIRED.equals(left.getStrength())) {
+    if (BindingStrength.REQUIRED.equals(right.getStrength())) {
+        if (!left.getValueSet().equals(right.getValueSet())) {
+          vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
+        }
+    } else if (BindingStrength.PREFERRED.equals(right.getStrength())) {
+      vm(IssueSeverity.ERROR, "Binding - Strength(Weaker)", path, comp.getMessages(), res.getMessages());
+     } else {
+      vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
+     }
+   }
+
+   if (BindingStrength.EXTENSIBLE.equals(left.getStrength())) {
+    if (BindingStrength.EXTENSIBLE.equals(right.getStrength())) {
+        if (!left.getValueSet().equals(right.getValueSet())) {
+          vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
+        }
+    } else if (BindingStrength.PREFERRED.equals(right.getStrength())) {
+      vm(IssueSeverity.ERROR, "Binding - Strength(Weaker)", path, comp.getMessages(), res.getMessages());
+    }
+    else {
+      vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
+     }
+   }
+
+   }
 
   private void checkMustSupportBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, boolean left, boolean right) {
     // "if Core.mustSupport = true and not IG.mustSupport = true" where Core is left and IG is right
