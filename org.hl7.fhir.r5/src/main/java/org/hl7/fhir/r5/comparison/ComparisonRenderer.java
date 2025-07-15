@@ -119,6 +119,7 @@ public class ComparisonRenderer implements IEvaluationContext {
           b.append("<tr><td colspan=\"6\"><b>"+Utilities.pluralize(name, 2)+"</b></td></tr>\r\n");
         }
         try {
+          System.out.println("TECHTEAM processList " + id);
           renderComparison(id, comp);
         } catch (Exception e) {
           log.error("Exception rendering "+id+": "+e.getMessage(), e);
@@ -151,6 +152,7 @@ public class ComparisonRenderer implements IEvaluationContext {
 
   private void renderComparison(String id, ResourceComparison comp) throws IOException, FHIRFormatError, DefinitionException, FHIRException, EOperationOutcome {    
     if (comp instanceof ProfileComparison) {
+      System.out.println("comp instanceof ProfileComparison" + comp.getId());
       renderProfile(id, (ProfileComparison) comp);
     } else if (comp instanceof ValueSetComparison) {
       renderValueSet(id, (ValueSetComparison) comp);
@@ -266,7 +268,7 @@ public class ComparisonRenderer implements IEvaluationContext {
     String intersection = new XhtmlComposer(true).compose(cs.renderIntersection(comp, "", folder, "http://hl7.org/fhir"));
     vars.put("union", new StringType(union));
     vars.put("intersection", new StringType(intersection));
-    
+
     String cnt = processTemplate(template, "Profile", vars);
     FileUtilities.stringToFile(cnt, file(comp.getId()+".html"));
 
@@ -280,6 +282,10 @@ public class ComparisonRenderer implements IEvaluationContext {
     
     new org.hl7.fhir.r5.formats.JsonParser().setOutputStyle(OutputStyle.PRETTY).compose(ManagedFileAccess.outStream(Utilities.path(folder, comp.getId() + "-union.json")), comp.getUnion());
     new org.hl7.fhir.r5.formats.JsonParser().setOutputStyle(OutputStyle.PRETTY).compose(ManagedFileAccess.outStream(Utilities.path(folder, comp.getId() + "-intersection.json")), comp.getIntersection());
+
+    System.out.println("TECHTEAM render csv " + comp.getId());
+    String csv = cs.renderStructureCsv(comp);
+    FileUtilities.stringToFile(csv, file(comp.getId() + "-sd-comparison.csv"));
   }
   
   private void renderCapabilityStatement(String id, CapabilityStatementComparison comp) throws IOException {  

@@ -1,11 +1,7 @@
 package org.hl7.fhir.r5.comparison;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.exceptions.DefinitionException;
@@ -1305,6 +1301,90 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     if (vsRef == null)
       return null;
     return ctxt.fetchResource(ValueSet.class, vsRef, src);
+  }
+
+  public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
+    StringBuilder csvData = new StringBuilder();
+    csvData.append("Path,L Must Support,L Min,L Max,L Type,L Description/Constraints,"); // CSV header
+    csvData.append("Path,R Must Support,R Min,R Max,R Type,R Description/Constraints,"); // CSV header
+    csvData.append("Comments\n");
+
+    genElementCompCsv(csvData, comp.combined);
+
+    return csvData.toString();
+  }
+
+  private void genElementCompCsv(StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
+
+    if (combined.hasLeft()) {
+      fillCsvRow(combined.getLeft().getDef(), csvData, combined);
+    } else {
+      csvData.append(",").append(",").append(",").append(",").append(",").append(",");
+    }
+    if (combined.hasRight()) {
+      fillCsvRow(combined.getRight().getDef(), csvData, combined);
+    } else {
+      csvData.append(",").append(",").append(",").append(",").append(",").append(",");
+    }
+
+    combined.getMessages().forEach(validationMessage -> {
+      csvData.append(validationMessage.getMessage()).append("\n");
+    });
+
+    csvData.append("\n");
+
+    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+      genElementCompCsv(csvData, child);
+    }
+  }
+
+  private void fillCsvRow(ElementDefinition def, StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
+    String path = combined.either().getDef().getPath();
+
+    csvData.append(escapeCsv(path)).append(",");
+    csvData.append(escapeCsv(Boolean.toString(def.getMustSupport()))).append(",");
+    csvData.append(escapeCsv(Integer.toString(def.getMin()))).append(",");
+    csvData.append(escapeCsv(def.getMax())).append(",");
+    csvData.append(renderTypeCsv(def.getType())).append(",");
+    csvData.append(escapeCsv(def.getShort()
+        + "\n"
+        + renderBindingCsv(def.getBinding())))
+        .append(",");
+
+
+  }
+
+  private String renderTypeCsv(List<TypeRefComponent> typeRefComponents) {
+    StringBuilder sb = new StringBuilder();
+    typeRefComponents.forEach(type -> {
+      sb.append(type.getCode());
+    });
+   return sb.toString();
+  }
+
+  private String renderBindingCsv(ElementDefinitionBindingComponent bindings) {
+    StringBuilder sb = new StringBuilder();
+    if (bindings.getValueSet() != null) {
+      sb.append("Bindings: ").append(bindings.getValueSet()).append(" ("+bindings.getStrength().getDisplay()+"): ")
+        .append(bindings.getDescription())
+        .append("\n");
+    }
+    if (bindings.getAdditional() != null || !bindings.getAdditional().isEmpty()) {
+      bindings.getAdditional().forEach(additional -> {
+        sb.append("Additional Bindings: ").append(additional).append(" Purpose: ").append(additional.getPurpose());
+      });
+    }
+    return sb.toString();
+
+  }
+
+  private String escapeCsv(String value) {
+    if (value == null) return "";
+    if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+      value = value.replace("\"", "\"\"");
+      return "\"" + value + "\"";
+    }
+    return value;
   }
 
   public XhtmlNode renderStructure(ProfileComparison comp, String id, String prefix, String corePath) throws FHIRException, IOException {
