@@ -315,6 +315,13 @@ public class SnapShotGenerationTests {
       return null;
     }
 
+
+    @Override
+    public String getDefinitionsName(Resource r) {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
   }
 
   private static class SnapShotGenerationTestsContext implements IEvaluationContext {
@@ -580,7 +587,7 @@ public class SnapShotGenerationTests {
     pu.setAllowUnknownProfile(test.allow);
     if (!testContext.hasPackage(CommonPackages.ID_XVER, CommonPackages.VER_XVER)) {
       NpmPackage npm = new FilesystemPackageCacheManager.Builder().build().loadPackage(CommonPackages.ID_XVER, CommonPackages.VER_XVER);
-      testContext.loadFromPackage(npm, new TestPackageLoader(Utilities.stringSet("StructureDefinition")), Utilities.stringSet("StructureDefinition"));
+      testContext.loadFromPackage(npm, new TestPackageLoader(Utilities.stringSet("StructureDefinition")));
     }
     pu.setXver(new XVerExtensionManager(testContext));
     if (test.isSort()) {

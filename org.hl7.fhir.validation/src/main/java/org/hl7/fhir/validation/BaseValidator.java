@@ -66,6 +66,7 @@ import org.hl7.fhir.r5.model.UsageContext;
 import org.hl7.fhir.r5.model.ValueSet;
 import org.hl7.fhir.r5.model.Enumerations.PublicationStatus;
 import org.hl7.fhir.r5.model.OperationOutcome.OperationOutcomeIssueComponent;
+import org.hl7.fhir.r5.terminologies.ImplicitValueSets;
 import org.hl7.fhir.r5.terminologies.ValueSetUtilities;
 import org.hl7.fhir.r5.utils.ToolingExtensions;
 import org.hl7.fhir.r5.utils.UserDataNames;
@@ -967,7 +968,7 @@ public class BaseValidator implements IValidationContextResourceLoader, IMessagi
           }
         }
         if (fr == null) {
-          fr = ValueSetUtilities.generateImplicitValueSet(reference);
+          fr = new ImplicitValueSets(context.getExpansionParameters()).generateImplicitValueSet(reference);
         } 
        
         timeTracker.tx(t, "vs "+uri);
@@ -1180,6 +1181,48 @@ public class BaseValidator implements IValidationContextResourceLoader, IMessagi
     }
   }
 
+  protected List<Element> getUrlMatches(Element element, String url, NodeStack stack) {
+    List<Element> result = new ArrayList<>(); 
+    if (element.isResource() && element.hasParentForValidator()) {
+      Element bnd = getElementBundle(element);
+      if (bnd != null) {
+        // in this case, we look into the parent - if there is one - and if it's a bundle, we look at the entries (but not in them)
+        for (Element be : bnd.getChildrenByName("entry")) {
+          if (be.hasChild("resource")) {
+            String t = be.getNamedChild("resource").fhirType()+"/"+be.getNamedChild("resource").getIdBase();
+            if (url.equals(t)) {
+              result.add(be.getNamedChild("resource"));
+            } else {
+              t = be.getNamedChildValue("fullUrl");
+              if (url.equals(t)) {
+                result.add(be.getNamedChild("resource"));
+              }
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  protected List<Element> getFragmentMatches(Element element, String fragment, NodeStack stack) {
+    List<Element> result = getFragmentMatches(element, fragment); 
+    if (element.isResource() && element.hasParentForValidator()) {
+      Element bnd = getElementBundle(element);
+      if (bnd != null) {
+        // in this case, we look into the parent - if there is one - and if it's a bundle, we look at the entries (but not in them)
+        for (Element be : bnd.getChildrenByName("entry")) {
+          if (be.hasChild("resource")) {
+            String id = be.getNamedChild("resource").getIdBase();
+            if (fragment.equals(id)) {
+              result.add(be.getNamedChild("resource"));
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
 
   protected int countFragmentMatches(Element element, String fragment, NodeStack stack) {
     int count = countFragmentMatches(element, fragment); 
@@ -1209,6 +1252,19 @@ public class BaseValidator implements IValidationContextResourceLoader, IMessagi
       }
     }
     return null;
+  }
+
+  protected List<Element> getFragmentMatches(Element element, String fragment) {
+    List<Element> result = new ArrayList<>();
+    if (fragment.equals(element.getIdBase())) {
+      result.add(element);
+    }
+    if (element.hasChildren()) {
+      for (Element child : element.getChildren()) {
+        result.addAll(getFragmentMatches(child, fragment));
+      }
+    }
+    return result;
   }
 
   protected int countFragmentMatches(Element element, String fragment) {
@@ -1540,12 +1596,13 @@ public class BaseValidator implements IValidationContextResourceLoader, IMessagi
     String vurl = ex.getVersionedUrl();
 
     StandardsStatus standardsStatus = ToolingExtensions.getStandardsStatus(ex);
-    Extension ext = ex.getExtensionByUrl(ToolingExtensions.EXT_STANDARDS_STATUS);
-    ext = ext == null || !ext.hasValue() ? null : ext.getValue().getExtensionByUrl(ToolingExtensions.EXT_STANDARDS_STATUS_REASON);
-    String note = ext == null || !ext.hasValue() ? null : MarkDownProcessor.markdownToPlainText(ext.getValue().primitiveValue());
     
     if (standardsStatus == StandardsStatus.DEPRECATED) {
-      if (!statusWarnings.contains(vurl+":DEPRECATED")) {  
+      if (!statusWarnings.contains(vurl+":DEPRECATED")) {
+        Extension ext = ex.getExtensionByUrl(ToolingExtensions.EXT_STANDARDS_STATUS);
+        ext = ext == null || !ext.hasValue() ? null : ext.getValue().getExtensionByUrl(ToolingExtensions.EXT_STANDARDS_STATUS_REASON);
+        String note = ext == null || !ext.hasValue() ? null : MarkDownProcessor.markdownToPlainText(ext.getValue().primitiveValue());
+
         statusWarnings.add(vurl+":DEPRECATED");
         hint(errors, "2023-08-10", IssueType.BUSINESSRULE, element.line(), element.col(), path, false, 
             Utilities.noString(note) ? I18nConstants.MSG_DEPENDS_ON_DEPRECATED : I18nConstants.MSG_DEPENDS_ON_DEPRECATED_NOTE, type, vurl, note);

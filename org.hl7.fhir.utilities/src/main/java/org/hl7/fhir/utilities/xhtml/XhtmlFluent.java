@@ -59,9 +59,9 @@ public abstract class XhtmlFluent {
   public XhtmlNode table(String clss, boolean forPresentation) {
     XhtmlNode res = addTag("table");
     if (!Utilities.noString(clss))
-      res.setAttribute("class", clss);
+      res.clss(clss);
     if (forPresentation) {
-      res.setAttribute("role", "presentation");
+      res.clss("presentation");
     }
     return res;
   }
@@ -148,6 +148,17 @@ public abstract class XhtmlFluent {
   
   public XhtmlNode tx(String cnt) {
     return addText(cnt);
+  }
+
+  /**
+   * used in i18n when we don't know if there'll be text, but if there is, it needs to be separated
+   * 
+   * @param cnt
+   */
+  public void stx(String cnt) {
+    if (!Utilities.noString(cnt)) {
+      addText(" "+cnt);
+    }
   }
 
   public XhtmlNode tx(int cnt) {

@@ -2,6 +2,7 @@ package org.hl7.fhir.validation.instance.type;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.hl7.fhir.r5.elementmodel.Element;
@@ -108,13 +109,15 @@ public class ImplementationGuideValidator extends BaseValidator {
           try {
             PackageClient pc = new PackageClient(PackageServer.primaryServer());
             List<PackageInfo> list = pc.getVersions(packageId);
+            Collections.sort(list, new org.hl7.fhir.utilities.npm.PackageInfo.PackageInfoVersionSorter());
             String lver = pcm.getLatestVersion(packageId);
+            String date = null;
             for (PackageInfo t : list) {
               if (!t.getVersion().contains("-")) {
                 lver = t.getVersion();
               }
             }
-            if (lver != null && !VersionUtilities.versionsMatch(version, lver) && isMoreThanXMonthsAgo(npm.dateAsLocalDate(), DATE_WARNING_CUTOFF)) {
+            if (lver != null && !"current".equals(lver) && !"current".equals(version) && !VersionUtilities.versionsMatch(version, lver) && isMoreThanXMonthsAgo(npm.dateAsLocalDate(), DATE_WARNING_CUTOFF)) {
               warning(errors, "2025-03-06", IssueType.BUSINESSRULE, dependency.line(), dependency.col(), stack.getLiteralPath(), false, I18nConstants.IG_DEPENDENCY_VERSION_WARNING_OLD, packageId+"#"+version, lver, npm.dateAsLocalDate().toString());            
             }
           } catch (Exception e) {

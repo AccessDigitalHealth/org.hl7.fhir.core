@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.exceptions.FHIRFormatError;
@@ -20,25 +21,28 @@ import org.hl7.fhir.r5.context.ContextUtilities;
 import org.hl7.fhir.r5.context.IWorkerContext;
 import org.hl7.fhir.r5.elementmodel.Element;
 import org.hl7.fhir.r5.fhirpath.FHIRPathEngine.IEvaluationContext;
+import org.hl7.fhir.r5.model.ActorDefinition;
 import org.hl7.fhir.r5.model.Base;
 import org.hl7.fhir.r5.model.DomainResource;
 import org.hl7.fhir.r5.model.Enumeration;
 import org.hl7.fhir.r5.model.PrimitiveType;
 import org.hl7.fhir.r5.model.Resource;
 import org.hl7.fhir.r5.model.StringType;
-
 import org.hl7.fhir.r5.renderers.utils.Resolver.IReferenceResolver;
 import org.hl7.fhir.r5.terminologies.utilities.ValidationResult;
 import org.hl7.fhir.r5.utils.ToolingExtensions;
 import org.hl7.fhir.utilities.FhirPublication;
+import org.hl7.fhir.utilities.KeyIssuer;
 import org.hl7.fhir.utilities.MarkDownProcessor;
-import org.hl7.fhir.utilities.MarkedToMoveToAdjunctPackage;
 import org.hl7.fhir.utilities.MarkDownProcessor.Dialect;
+import org.hl7.fhir.utilities.MarkedToMoveToAdjunctPackage;
 import org.hl7.fhir.utilities.StandardsStatus;
 import org.hl7.fhir.utilities.StringPair;
 import org.hl7.fhir.utilities.Utilities;
 import org.hl7.fhir.utilities.i18n.RenderingI18nContext;
 import org.hl7.fhir.utilities.validation.ValidationOptions;
+import org.hl7.fhir.utilities.xhtml.XhtmlFluent;
+import org.hl7.fhir.utilities.xhtml.XhtmlNode;
 
 /**
  * Managing Language when rendering 
@@ -107,6 +111,13 @@ public class RenderingContext extends RenderingI18nContext {
         return langs.get(lang);
       }
     }
+
+    public void setNoHeader(boolean b) {
+      defLangRC.setNoHeader(b);
+      for (RenderingContext rc : langs.values()) {
+        rc.setNoHeader(b);
+      }
+    }
   }
 
   // provides liquid templates, if they are available for the content
@@ -160,6 +171,7 @@ public class RenderingContext extends RenderingI18nContext {
     SUMMARY, // 5 cells: tree/name | flags | cardinality | type | details
     BINDINGS, // tree/name + column for each kind of binding found, cells are lists of bindings 
     OBLIGATIONS, // tree/name + column for each actor that has obligations
+    MAPPINGS, // tree/name + column for each other structure definition there is mappings for
     DATA_DICT,  // detailed element view 
   }
 
@@ -253,6 +265,21 @@ public class RenderingContext extends RenderingI18nContext {
     ALL // in addition to translations in designations, look for an render translations (WIP)
   }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   private final IWorkerContext worker;
   private MarkDownProcessor markdown;
   private ResourceRendererMode mode;
@@ -317,6 +344,12 @@ public class RenderingContext extends RenderingI18nContext {
   private IResourceLinkResolver resolveLinkResolver;
   private boolean debug;
   private DesignationMode designationMode;
+  private boolean noHeader;
+  private Set<ActorDefinition> actorWhiteList = new HashSet<>();
+  private boolean trackNarrativeSource;
+  private KeyIssuer crossLinkKeyGen;
+  private int randomTracker;
+  private boolean testing;
   
   /**
    * 
@@ -339,6 +372,7 @@ public class RenderingContext extends RenderingI18nContext {
     if (terminologyServiceOptions != null) {
       this.terminologyServiceOptions = terminologyServiceOptions;
     }
+    crossLinkKeyGen = new KeyIssuer("xn");
   }
   
   public RenderingContext copy(boolean copyAnchors) {
@@ -389,6 +423,26 @@ public class RenderingContext extends RenderingI18nContext {
     res.unknownLocalReferencesNotLinks = unknownLocalReferencesNotLinks;
     res.resolveLinkResolver = resolveLinkResolver;
     res.debug = debug;
+    res.noHeader = noHeader;
+    res.uniqueLocalPrefix = uniqueLocalPrefix;
+    res.secondaryLang = secondaryLang;
+    res.fixedFormat = fixedFormat;
+    res.oids = oids;
+    res.base64Limit = base64Limit;
+    res.shortPatientForm = shortPatientForm;
+    res.designationMode = designationMode;
+    res.addName = addName;
+    res.typeMap = typeMap;
+    res.trackNarrativeSource = trackNarrativeSource;
+    res.crossLinkKeyGen = crossLinkKeyGen;
+    
+    res.getActorWhiteList().addAll(actorWhiteList);
+
+// not sure about these    
+//    private List<String> files = new ArrayList<String>(); // files created as by-products in destDir
+//    private Map<KnownLinkType, String> links = new HashMap<>();
+//    private Map<String, StringPair> namedLinks = new HashMap<>();
+
     return res;
   }
   
@@ -1128,4 +1182,51 @@ public class RenderingContext extends RenderingI18nContext {
     self.oids = oids;
     return self;
   }
+
+  public boolean isNoHeader() {
+    return noHeader;
+  }
+
+  public void setNoHeader(boolean noHeader) {
+    this.noHeader = noHeader;
+  }
+
+  public Set<ActorDefinition> getActorWhiteList() {
+    return actorWhiteList;
+  }
+
+  public boolean isTrackNarrativeSource() {
+    return trackNarrativeSource;
+  }
+
+  public void setTrackNarrativeSource(boolean trackNarrativeSource) {
+    this.trackNarrativeSource = trackNarrativeSource;
+  }
+
+  public String nextXNKey() {
+    return crossLinkKeyGen.issueKey();
+  }
+
+  public String getRandomName(String id) {
+    if (testing) {
+      return id+"-"+(++randomTracker);
+    } else {
+      return UUID.randomUUID().toString().toLowerCase();
+    }
+  }
+
+  public boolean isTesting() {
+    return testing;
+  }
+
+  /**
+   * testing is used to turn off production of random UUIDs and produce something known and predictable but
+   * likely to produce name clashes in production - for the sake of test case reproducibility
+   * @param testing
+   */
+  public void setTesting(boolean testing) {
+    this.testing = testing;
+  }
+
+  
 }

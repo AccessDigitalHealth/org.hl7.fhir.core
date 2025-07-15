@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.exceptions.NoTerminologyServiceException;
 import org.hl7.fhir.r5.context.ContextUtilities;
@@ -97,6 +98,7 @@ import org.hl7.fhir.utilities.validation.ValidationMessage.IssueSeverity;
 import org.hl7.fhir.utilities.validation.ValidationOptions;
 
 @MarkedToMoveToAdjunctPackage
+@Slf4j
 public class ValueSetValidator extends ValueSetProcessBase {
 
   public static final String NO_TRY_THE_SERVER = "The local terminology server cannot handle this request";
@@ -457,9 +459,11 @@ public class ValueSetValidator extends ValueSetProcessBase {
       ValueSetValidator vsv = getVs(url, info);
       serverCount += vsv.getServerLoad(info);
     }
-    CodeSystem cs = resolveCodeSystem(inc.getSystem(), inc.getVersion());
-    if (cs == null || (cs.getContent() != CodeSystemContentMode.COMPLETE && cs.getContent() != CodeSystemContentMode.FRAGMENT)) {
-      serverCount++;
+    if (inc.hasSystem()) {
+      CodeSystem cs = resolveCodeSystem(inc.getSystem(), inc.getVersion());
+      if (cs == null || (cs.getContent() != CodeSystemContentMode.COMPLETE && cs.getContent() != CodeSystemContentMode.FRAGMENT)) {
+        serverCount++;
+      }
     }
     return serverCount;
   }
@@ -672,6 +676,9 @@ public class ValueSetValidator extends ValueSetProcessBase {
             break;
           }
           warningMessage = warningMessage + ", so the code has not been validated";
+          if (cs.getContent() == CodeSystemContentMode.NOTPRESENT) {
+            throw new VSCheckerException(warningMessage, null, TerminologyServiceErrorClass.CODESYSTEM_UNSUPPORTED);
+          }
           if (!options.isExampleOK() && !inExpansion && cs.getContent() != CodeSystemContentMode.FRAGMENT) { // we're going to give it a go if it's a fragment
             throw new VSCheckerException(warningMessage, null, true);
           }
@@ -792,7 +799,7 @@ public class ValueSetValidator extends ValueSetProcessBase {
 
   private void checkValueSetOptions() {
     if (valueset != null) {
-      for (Extension ext : valueset.getCompose().getExtensionsByUrl("http://hl7.org/fhir/tools/StructureDefinion/valueset-expansion-param")) {
+      for (Extension ext : valueset.getCompose().getExtensionsByUrl("http://hl7.org/fhir/tools/StructureDefinition/valueset-expansion-parameter")) {
         var name = ext.getExtensionString("name");
         var value = ext.getExtensionByUrl("value").getValue();
         if ("displayLanguage".equals(name)) {
@@ -1549,7 +1556,7 @@ public class ValueSetValidator extends ValueSetProcessBase {
     } else if (isKnownProperty(f.getProperty())) {
       return codeInKnownPropertyFilter(cs, f, code);
     } else {
-      System.out.println("todo: handle filters with property = "+f.getProperty()+" "+f.getOp().toCode()); 
+      log.error("todo: handle filters with property = "+f.getProperty()+" "+f.getOp().toCode());
       throw new FHIRException(context.formatMessage(I18nConstants.UNABLE_TO_HANDLE_SYSTEM__FILTER_WITH_PROPERTY__, cs.getUrl(), f.getProperty(), f.getOp().toCode()));
     }
   }
@@ -1605,7 +1612,7 @@ public class ValueSetValidator extends ValueSetProcessBase {
       }
       return true;
     default:
-      System.out.println("todo: handle property filters with op = "+f.getOp()); 
+      log.error("todo: handle property filters with op = "+f.getOp());
       throw new FHIRException(context.formatMessage(I18nConstants.UNABLE_TO_HANDLE_SYSTEM__PROPERTY_FILTER_WITH_OP__, cs.getUrl(), f.getOp()));
     }
   }
@@ -1628,7 +1635,7 @@ public class ValueSetValidator extends ValueSetProcessBase {
       d = CodeSystemUtilities.getProperty(cs, code, f.getProperty());
       return d != null && d.primitiveValue() != null && d.primitiveValue().matches(f.getValue());
     default:
-      System.out.println("todo: handle known property filters with op = "+f.getOp()); 
+      log.error("todo: handle known property filters with op = "+f.getOp());
       throw new FHIRException(context.formatMessage(I18nConstants.UNABLE_TO_HANDLE_SYSTEM__PROPERTY_FILTER_WITH_OP__, cs.getUrl(), f.getOp()));
     }
   }
@@ -1643,7 +1650,7 @@ public class ValueSetValidator extends ValueSetProcessBase {
     case ISNOTA: return !codeInConceptIsAFilter(cs, f, code, false);
     case DESCENDENTOF: return codeInConceptIsAFilter(cs, f, code, true); 
     default:
-      System.out.println("todo: handle concept filters with op = "+f.getOp()); 
+      log.error("todo: handle concept filters with op = "+f.getOp());
       throw new FHIRException(context.formatMessage(I18nConstants.UNABLE_TO_HANDLE_SYSTEM__CONCEPT_FILTER_WITH_OP__, cs.getUrl(), f.getOp()));
     }
   }

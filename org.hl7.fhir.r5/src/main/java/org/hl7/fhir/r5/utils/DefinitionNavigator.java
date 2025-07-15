@@ -32,6 +32,7 @@ package org.hl7.fhir.r5.utils;
 
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -156,7 +157,8 @@ public class DefinitionNavigator {
     if (children == null) {
       loadChildren();
     }
-    return slices;
+    // never return null: if no slices were found, give back an empty list
+    return slices != null ? slices : Collections.emptyList();
   }
   
   public List<DefinitionNavigator> children() throws DefinitionException {
@@ -171,10 +173,23 @@ public class DefinitionNavigator {
     String prefix = path+".";
     Map<String, DefinitionNavigator> nameMap = new HashMap<String, DefinitionNavigator>();
 
+    int workingIndex = index;
+    ElementDefinition curr = current();
+    if (curr != null && curr.hasContentReference()) {
+      if (!(workingIndex < list().size()-1 && list().get(workingIndex+1).getPath().startsWith(prefix))) {
+        String ref = curr.getContentReference();
+        if (ref.contains("#")) {
+          ref = ref.substring(ref.indexOf("#")+1);
+        }
+        prefix = ref;
+        workingIndex = getById(list(), ref);
+      }
+    }
+
     DefinitionNavigator last = null;
     String polymorphicRoot = null;
     DefinitionNavigator polymorphicDN = null;
-    for (int i = indexMatches ? index + 1 : index; i < list().size(); i++) {
+    for (int i = indexMatches ? workingIndex + 1 : workingIndex; i < list().size(); i++) {
       String path = list().get(i).getPath();
       if (path.startsWith(prefix)) {
         if (!path.substring(prefix.length()).contains(".")) {
@@ -184,9 +199,15 @@ public class DefinitionNavigator {
 
           if (nameMap.containsKey(path)) {
             DefinitionNavigator master = nameMap.get(path);
-            ElementDefinition cm = master.current();           
+            ElementDefinition cm = master.current();
+            // Skip missing slicing error for extensions: they are implicitly sliced by url
             if (!cm.hasSlicing()) {
-              throw new DefinitionException("Found slices with no slicing details at "+dn.current().getPath());
+              String cmPath = cm.getPath();
+              boolean isExtension = cmPath.endsWith(".extension")
+                                 || cmPath.endsWith(".modifierExtension");
+              if (!isExtension) {
+                throw new DefinitionException("Found slices with no slicing details at " + dn.current().getPath());
+              }
             }
             if (master.slices == null) {
               master.slices = new ArrayList<DefinitionNavigator>();
@@ -249,6 +270,9 @@ public class DefinitionNavigator {
         break;
       }
     }
+    if (children.isEmpty() && current().hasContentReference()) {
+      throw new Error("What?");
+    }
     inlineChildren = !children.isEmpty();
     if (children.isEmpty() && followTypes) {
       ElementDefinition ed = current();
@@ -277,6 +301,15 @@ public class DefinitionNavigator {
         }
       }
     }
+  }
+
+  private int getById(List<ElementDefinition> list, String ref) {
+    for (ElementDefinition ed : list) {
+      if (ref.equals(ed.getPath())) {
+        return list.indexOf(ed);
+      }
+    }
+    return -1;
   }
 
   private ElementDefinition makeExtensionDefinitionElement(String path) {
