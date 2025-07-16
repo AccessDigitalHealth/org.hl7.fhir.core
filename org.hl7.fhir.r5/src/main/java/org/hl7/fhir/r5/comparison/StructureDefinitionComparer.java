@@ -851,9 +851,11 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
      }
    } else { // Core other binding
-    if (!left.getValueSet().equals(right.getValueSet())) {
+     if (Objects.nonNull(left.getValueSet()) && Objects.nonNull(right.getValueSet())) {
+      if (!left.getValueSet().equals(right.getValueSet())) {
         vm(IssueSeverity.WARNING, "Binding - Default(NonBreak)", path, comp.getMessages(), res.getMessages());
       }
+     }
    }
 
    }
