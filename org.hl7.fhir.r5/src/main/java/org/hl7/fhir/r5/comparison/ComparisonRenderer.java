@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.hl7.fhir.exceptions.DefinitionException;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.exceptions.FHIRFormatError;
@@ -283,9 +284,26 @@ public class ComparisonRenderer implements IEvaluationContext {
     new org.hl7.fhir.r5.formats.JsonParser().setOutputStyle(OutputStyle.PRETTY).compose(ManagedFileAccess.outStream(Utilities.path(folder, comp.getId() + "-union.json")), comp.getUnion());
     new org.hl7.fhir.r5.formats.JsonParser().setOutputStyle(OutputStyle.PRETTY).compose(ManagedFileAccess.outStream(Utilities.path(folder, comp.getId() + "-intersection.json")), comp.getIntersection());
 
+    System.out.println("TECHTEAM render excel spreadsheet " + comp.getId());
+    Workbook workbook = cs.renderStructureXlsx(comp);
+    try (FileOutputStream out = new FileOutputStream(comp.getId() + "-comparison.xlsx")) {
+      workbook.write(out);
+    }
+    catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      try {
+        log.info("workbook closed");
+        workbook.close();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+
     System.out.println("TECHTEAM render csv " + comp.getId());
     String csv = cs.renderStructureCsv(comp);
-    FileUtilities.stringToFile(csv, file(comp.getId() + "-sd-comparison.csv"));
+    FileUtilities.stringToFile(csv, file(comp.getId() + "-comparison.csv"));
+
   }
   
   private void renderCapabilityStatement(String id, CapabilityStatementComparison comp) throws IOException {  

@@ -1,9 +1,13 @@
 package org.hl7.fhir.r5.comparison;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.hl7.fhir.exceptions.DefinitionException;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.exceptions.FHIRFormatError;
@@ -34,6 +38,7 @@ import org.hl7.fhir.r5.model.StructureDefinition.TypeDerivationRule;
 import org.hl7.fhir.r5.model.ValueSet;
 import org.hl7.fhir.r5.renderers.Renderer.RenderingStatus;
 import org.hl7.fhir.r5.renderers.StructureDefinitionRenderer;
+import org.hl7.fhir.r5.renderers.spreadsheets.SpreadsheetGenerator;
 import org.hl7.fhir.r5.renderers.utils.RenderingContext;
 import org.hl7.fhir.r5.renderers.utils.RenderingContext.GenerationRules;
 import org.hl7.fhir.r5.renderers.utils.RenderingContext.ResourceRendererMode;
@@ -1348,10 +1353,82 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     csvData.append(renderTypeCsv(def.getType())).append(",");
     csvData.append(escapeCsv(def.getShort()
         + "\n"
-        + renderBindingCsv(def.getBinding())))
-        .append(",");
+        + renderBinding(def.getBinding())))
+      .append(",");
 
 
+  }
+
+  public Workbook renderStructureXlsx(ProfileComparison comp) throws FHIRException, IOException {
+
+    Workbook workbook = new XSSFWorkbook();
+    Sheet impactAnalysis = workbook.createSheet("Impact Analysis");
+
+    AtomicInteger rowIndex = new AtomicInteger();
+
+    org.apache.poi.ss.usermodel.Row headerRow = impactAnalysis.createRow(rowIndex.getAndIncrement());
+
+    String[] headers = {
+      "Path", "L Must Support", "L Min", "L Max", "L Type", "L Description/Constraints",
+      "Path", "R Must Support", "R Min", "R Max", "R Type", "R Description/Constraints",
+      "Comments"
+    };
+
+    CellStyle headerStyle = workbook.createCellStyle();
+    Font font = workbook.createFont();
+    font.setBold(true);
+    headerStyle.setFont(font);
+    headerStyle.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+    headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+    for (int i = 0; i < headers.length; i++) {
+      org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+      cell.setCellValue(headers[i]);
+      cell.setCellStyle(headerStyle);
+    }
+
+    genElementCompXlsx(impactAnalysis, rowIndex, workbook, comp.combined);
+
+    return workbook;
+  }
+
+  private void genElementCompXlsx(Sheet sheet, AtomicInteger rowIndex, Workbook workbook, StructuralMatch<ElementDefinitionNode> combined) {
+    org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowIndex.getAndIncrement());
+
+    int col = 0;
+
+    if (combined.hasLeft()) {
+      col = fillXlsxRow(row, col, combined.getLeft().getDef(), combined, workbook);
+    } else {
+      col += 6;
+    }
+
+    if (combined.hasRight()) {
+      col = fillXlsxRow(row, col, combined.getRight().getDef(), combined, workbook);
+    } else {
+      col += 6;
+    }
+
+    StringBuilder commentStr = new StringBuilder();
+    combined.getMessages().forEach(msg -> commentStr.append(msg.getMessage()).append("\n"));
+    row.createCell(col).setCellValue(commentStr.toString());
+
+    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+      genElementCompXlsx(sheet, rowIndex, workbook, child);
+    }
+  }
+
+  private int fillXlsxRow(org.apache.poi.ss.usermodel.Row row, int startCol, ElementDefinition def, StructuralMatch<ElementDefinitionNode> combined, Workbook workbook) {
+    int col = startCol;
+
+    row.createCell(col++).setCellValue(combined.either().getDef().getPath());
+    row.createCell(col++).setCellValue(Boolean.toString(def.getMustSupport()));
+    row.createCell(col++).setCellValue(def.getMin());
+    row.createCell(col++).setCellValue(def.getMax());
+    row.createCell(col++).setCellValue(renderTypeCsv(def.getType()));
+    row.createCell(col++).setCellValue(def.getShort() + "\n" + renderBinding(def.getBinding()));
+
+    return col;
   }
 
   private String renderTypeCsv(List<TypeRefComponent> typeRefComponents) {
@@ -1362,7 +1439,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
    return sb.toString();
   }
 
-  private String renderBindingCsv(ElementDefinitionBindingComponent bindings) {
+  private String renderBinding(ElementDefinitionBindingComponent bindings) {
     StringBuilder sb = new StringBuilder();
     if (bindings.getValueSet() != null) {
       sb.append("Bindings: ").append(bindings.getValueSet()).append(" ("+bindings.getStrength().getDisplay()+"): ")
