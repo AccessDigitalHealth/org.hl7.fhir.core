@@ -283,7 +283,7 @@ public class ComparisonRenderer implements IEvaluationContext {
     new org.hl7.fhir.r5.formats.JsonParser().setOutputStyle(OutputStyle.PRETTY).compose(ManagedFileAccess.outStream(Utilities.path(folder, comp.getId() + "-union.json")), comp.getUnion());
     new org.hl7.fhir.r5.formats.JsonParser().setOutputStyle(OutputStyle.PRETTY).compose(ManagedFileAccess.outStream(Utilities.path(folder, comp.getId() + "-intersection.json")), comp.getIntersection());
 
-    System.out.println("TECHTEAM render csv " + comp.getId());
+    System.out.println("TECHTEAM render csv CHANGED " + comp.getId());
     String csv = cs.renderStructureCsv(comp);
     FileUtilities.stringToFile(csv, file(comp.getId() + "-sd-comparison.csv"));
   }

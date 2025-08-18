@@ -2,6 +2,7 @@ package org.hl7.fhir.r5.comparison;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,7 +65,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   public class ProfileComparison extends CanonicalResourceComparison<StructureDefinition> {
 
-    private StructuralMatch<ElementDefinitionNode> combined;                                             
+    private StructuralMatch<ElementDefinitionNode> combined;
 
     public ProfileComparison(StructureDefinition left, StructureDefinition right) {
       super(left, right);
@@ -165,7 +166,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       chMetadata.add("abstract");
     }
     res.updatedMetadataState(ch, chMetadata);
-    
+
     ch = false;
     ch = comparePrimitives("type", left.getTypeElement(), right.getTypeElement(), res.getMetadata(), IssueSeverity.ERROR, res) || ch;
     ch = comparePrimitives("baseDefinition", left.getBaseDefinitionElement(), right.getBaseDefinitionElement(), res.getMetadata(), IssueSeverity.ERROR, res) || ch;
@@ -202,24 +203,24 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private boolean compareElements(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res,  String path, String sliceName, DefinitionNavigator left, DefinitionNavigator right) throws DefinitionException, FHIRFormatError, IOException {
-    assert(path != null);  
+    assert(path != null);
     assert(left != null);
     assert(right != null);
     assert(left.path().equals(right.path()));
 
     boolean def = false;
-    
+
 
       log.debug("Compare elements at "+path);
 
-    
-    // not allowed to be different:   
+
+    // not allowed to be different:
 //    ruleEqual(comp, res, left.current().getDefaultValue(), right.current().getDefaultValue(), "defaultValue", path);
 //    ruleEqual(comp, res, left.current().getMeaningWhenMissingElement(), right.current().getMeaningWhenMissingElement(), "meaningWhenMissing", path);
 //    ruleEqual(comp, res, left.current().getIsModifierElement(), right.current().getIsModifierElement(), "isModifier", path); - this check belongs in the core
 //    ruleEqual(comp, res, left.current().getIsSummaryElement(), right.current().getIsSummaryElement(), "isSummary", path); - so does this
 
-    // we ignore slicing right now - we're going to clone the root one anyway, and then think about clones 
+    // we ignore slicing right now - we're going to clone the root one anyway, and then think about clones
     // simple stuff
     ElementDefinition subset = new ElementDefinition();
     subset.setPath(left.path());
@@ -238,7 +239,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
     subset.setShort(mergeText(comp, res, path, "short", left.current().getShort(), right.current().getShort(), false));
     def = comparePrimitivesWithTracking("short", left.current().getShortElement(), right.current().getShortElement(), null, IssueSeverity.INFORMATION, comp, right.current()) || def;
-    
+
     subset.setDefinition(mergeText(comp, res, path, "definition", left.current().getDefinition(), right.current().getDefinition(), false));
     def = comparePrimitivesWithTracking("definition", left.current().getDefinitionElement(), right.current().getDefinitionElement(), null, IssueSeverity.INFORMATION, comp, right.current()) || def;
 
@@ -271,12 +272,14 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     int rightMin = right.current().getMin();
     int leftMax = "*".equals(left.current().getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(left.current().getMax(), -1);
     int rightMax = "*".equals(right.current().getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(right.current().getMax(), -1);
-    
+
     checkMinMax(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     checkCardinalityBreak(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     checkDatatypeBreak(comp, res, path, left.current().getType(), right.current().getType());
     checkMustSupportBreak(comp, res, path, left.current().getMustSupport(), right.current().getMustSupport());
     checkBindingBreak(comp, res, path, left.current().getBinding(), right.current().getBinding());
+    checkExtensionBreak(comp, res, path, left, right);
+    //Check extension break is appended onto "added this element" logic
     superset.setMin(unionMin(leftMin, rightMin));
     superset.setMax(unionMax(leftMax, rightMax, left.current().getMax(), right.current().getMax()));
     subset.setMin(intersectMin(leftMin, rightMin));
@@ -312,29 +315,29 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 //        ElementDefinitionSlicingComponent slicingL = left.current().getSlicing();
 //        ElementDefinitionSlicingComponent slicingR = right.current().getSlicing();
 //        // well, this is tricky. If one is sliced, and the other is not, then in general, the union just ignores the slices, and the intersection is the slices.
-//        if (left.current().hasSlicing() && !right.current().hasSlicing()) { 
+//        if (left.current().hasSlicing() && !right.current().hasSlicing()) {
 //          // the super set is done. Any restrictions in the slices are irrelevant to what the super set says, except that we're going sum up the value sets if we can (for documentation purposes) (todo)
 //          // the minimum set is the slicing specified in the slicer
 //          subset.setSlicing(slicingL);
-//          // stick everything from the right to do with the slices to the subset 
+//          // stick everything from the right to do with the slices to the subset
 //          copySlices(outcome.subset.getSnapshot().getElement(), left.getStructure().getSnapshot().getElement(), left.slices());
-//        } else if (!left.current().hasSlicing() && right.current().hasSlicing()) { 
+//        } else if (!left.current().hasSlicing() && right.current().hasSlicing()) {
 //          // the super set is done. Any restrictions in the slices are irrelevant to what the super set says, except that we're going sum up the value sets if we can (for documentation purposes) (todo)
 //          // the minimum set is the slicing specified in the slicer
 //          subset.setSlicing(slicingR);
-//          // stick everything from the right to do with the slices to the subset 
+//          // stick everything from the right to do with the slices to the subset
 //          copySlices(outcome.subset.getSnapshot().getElement(), right.getStructure().getSnapshot().getElement(), right.slices());
 //        } else if (isTypeSlicing(slicingL) || isTypeSlicing(slicingR)) {
 //          superset.getSlicing().setRules(SlicingRules.OPEN).setOrdered(false).addDiscriminator().setType(DiscriminatorType.TYPE).setPath("$this");
 //          subset.getSlicing().setRules(slicingL.getRules() == SlicingRules.CLOSED || slicingR.getRules() == SlicingRules.CLOSED ? SlicingRules.OPEN : SlicingRules.CLOSED).setOrdered(false).addDiscriminator().setType(DiscriminatorType.TYPE).setPath("$this");
 //
-//          // the superset is the union of the types 
-//          // the subset is the intersection of them 
+//          // the superset is the union of the types
+//          // the subset is the intersection of them
 //          List<DefinitionNavigator> handled = new ArrayList<>();
 //          for (DefinitionNavigator t : left.slices()) {
 //            DefinitionNavigator r = findMatchingSlice(right.slices(), t);
 //            if (r == null) {
-//              copySlice(outcome.superset.getSnapshot().getElement(), left.getStructure().getSnapshot().getElement(), t);              
+//              copySlice(outcome.superset.getSnapshot().getElement(), left.getStructure().getSnapshot().getElement(), t);
 //            } else {
 //              handled.add(r);
 //              ret = compareElements(outcome, path+":"+t.current().getSliceName(), t, r, t.current().getSliceName()) && ret;
@@ -347,14 +350,14 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 //          }
 //        } else if (slicingMatches(slicingL, slicingR)) {
 //          // if it's the same, we can try matching the slices - though we might have to give up without getting matches correct
-//          // there amy be implied consistency we can't reason about 
+//          // there amy be implied consistency we can't reason about
 //          throw new DefinitionException("Slicing matches but is not handled yet at "+left.current().getId()+": ("+ProfileUtilities.summarizeSlicing(slicingL)+")");
 //        } else  {
 //          // if the slicing is different, we can't compare them - or can we?
 //          throw new DefinitionException("Slicing doesn't match at "+left.current().getId()+": ("+ProfileUtilities.summarizeSlicing(slicingL)+" / "+ProfileUtilities.summarizeSlicing(slicingR)+")");
 //        }
 //      }
-//      // todo: name 
+//      // todo: name
 //    }
 //    return ret;
 //
@@ -362,21 +365,21 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 //    return null;
     return def;
   }
-  
+
 
   private boolean compareChildren(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, DefinitionNavigator left, DefinitionNavigator right) throws DefinitionException, IOException, FHIRFormatError {
     boolean def = false;
-    
+
     List<DefinitionNavigator> lc = left.children();
     List<DefinitionNavigator> rc = right.children();
     // it's possible that one of these profiles walks into a data type and the other doesn't
-    // if it does, we have to load the children for that data into the profile that doesn't 
+    // if it does, we have to load the children for that data into the profile that doesn't
     // walk into it
     if (lc.isEmpty() && !rc.isEmpty() && right.current().getType().size() == 1 && left.hasTypeChildren(right.current().getType().get(0), left.getStructure()))
       lc = left.childrenFromType(right.current().getType().get(0), right.getStructure());
     if (rc.isEmpty() && !lc.isEmpty() && left.current().getType().size() == 1 && right.hasTypeChildren(left.current().getType().get(0), right.getStructure()))
       rc = right.childrenFromType(left.current().getType().get(0), left.getStructure());
-    
+
     List<DefinitionNavigator> matchR = new ArrayList<>();
     for (DefinitionNavigator l : lc) {
       DefinitionNavigator r = findInList(rc, l);
@@ -391,9 +394,21 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       }
     }
     for (DefinitionNavigator r : rc) {
+      if (r.path().contains("extension")){
+        System.out.println(r);
+      }
+
       if (!matchR.contains(r)) {
         comp.getUnion().getSnapshot().getElement().add(r.current().copy());
-        res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.INFORMATION, "Added this element", path), new ElementDefinitionNode(r.getStructure(), r.current())));        
+        if (r.path().contains("extension")){
+          List<DefinitionNavigator> slices = r.slices();
+          for (DefinitionNavigator slice : slices){
+            res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.ERROR, "Break Reason: Extension: " + slice.getId(), slice.getId()), new ElementDefinitionNode(slice.getStructure(), slice.current())));
+          }
+        }
+        else {
+          res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.INFORMATION, "Added this element", path), new ElementDefinitionNode(r.getStructure(), r.current())));
+        }
       }
     }
     return def;
@@ -401,16 +416,16 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
 
   private boolean compareDiff(String path, String sliceName, DefinitionNavigator left, DefinitionNavigator right, ProfileComparison res, List<Base> parents) throws DefinitionException, FHIRFormatError, IOException {
-    assert(path != null);  
+    assert(path != null);
     assert(left != null);
     assert(right != null);
     assert(left.path().equals(right.path()));
     assert(parents.size() > 0);
-    
+
     boolean def = false;
     boolean ch = false;
-    
-    // not allowed to be different:   
+
+    // not allowed to be different:
 //    ruleEqual(comp, res, left.current().getDefaultValue(), right.current().getDefaultValue(), "defaultValue", path);
 //    ruleEqual(comp, res, left.current().getMeaningWhenMissingElement(), right.current().getMeaningWhenMissingElement(), "meaningWhenMissing", path);
 //    ruleEqual(comp, res, left.current().getIsModifierElement(), right.current().getIsModifierElement(), "isModifier", path); - this check belongs in the core
@@ -421,9 +436,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     if (edl == null && edr == null) {
       // both are sparse at this point, do nothing
     } else if (edl == null) {
-      session.markAdded(edr);      
+      session.markAdded(edr);
     } else if (edr == null) {
-      session.markDeleted(right.parent(), "element", edl);            
+      session.markDeleted(right.parent(), "element", edl);
     } else {
       // descriptive properties from ElementDefinition
       comparePrimitivesWithTracking("label", edl.getLabelElement(), edr.getLabelElement(), null, IssueSeverity.INFORMATION, null, edr);
@@ -431,7 +446,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       comparePrimitivesWithTracking("sliceIsConstraining", edl.getSliceIsConstrainingElement(), edr.getSliceIsConstrainingElement(), null, IssueSeverity.INFORMATION, null, edr);
       comparePrimitivesWithTracking("alias", edl.getAlias(), edr.getAlias(), null, IssueSeverity.INFORMATION, null, edr);
       compareDataTypesWithTracking("code", edl.getCode(), edr.getCode(), null, IssueSeverity.INFORMATION, null, edr);
-      
+
       def = comparePrimitivesWithTracking("short", edl.getShortElement(), edr.getShortElement(), null, IssueSeverity.INFORMATION, null, edr) || def;
       def = comparePrimitivesWithTracking("definition", edl.getDefinitionElement(), edr.getDefinitionElement(), null, IssueSeverity.INFORMATION, null, edr) || def;
       def = comparePrimitivesWithTracking("comment", edl.getCommentElement(), edr.getCommentElement(), null, IssueSeverity.INFORMATION, null, edr) || def;
@@ -439,7 +454,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       def = comparePrimitivesWithTracking("mustSupport", edl.getMustSupportElement(), edr.getMustSupportElement(), null, IssueSeverity.INFORMATION, null, edr) || def;
       def = comparePrimitivesWithTracking("meaningWhenMissing", edl.getMeaningWhenMissingElement(), edr.getMeaningWhenMissingElement(), null, IssueSeverity.INFORMATION, null, edr) || def;
       def = comparePrimitivesWithTracking("isModifierReason", edl.getIsModifierReasonElement(), edr.getIsModifierReasonElement(), null, IssueSeverity.INFORMATION, null, edr) || def;
-      
+
       ch = comparePrimitivesWithTracking("min", edl.getMinElement(), edr.getMinElement(), null, IssueSeverity.ERROR, null, edr) || ch;
       ch = comparePrimitivesWithTracking("max", edl.getMaxElement(), edr.getMaxElement(), null, IssueSeverity.ERROR, null, edr) || ch;
       ch = compareDataTypesWithTracking("defaultValue", edl.getDefaultValue(), edr.getDefaultValue(), null, IssueSeverity.ERROR, null, edr) || ch;
@@ -451,18 +466,18 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       ch = comparePrimitivesWithTracking("mustHaveValue", edl.getMustHaveValueElement(), edr.getMustHaveValueElement(), null, IssueSeverity.INFORMATION, null, edr) || def;
       ch = comparePrimitivesWithTracking("valueAlternatives", edl.getValueAlternatives(), edr.getValueAlternatives(), null, IssueSeverity.INFORMATION, null, edr) || ch;
       ch = comparePrimitivesWithTracking("isModifier", edl.getIsModifierElement(), edr.getIsModifierElement(), null, IssueSeverity.INFORMATION, null, edr) || def;
-      
+
       def = compareTypes(path, sliceName, edl, edr, res) || def;
-      
-      
+
+
       ElementDefinitionBindingComponent bl = edl.getBinding();
       ElementDefinitionBindingComponent br = edr.getBinding();
       if (bl == null && br == null) {
         // both are sparse at this point, do nothing
       } else if (bl == null) {
-        session.markAdded(edr);      
+        session.markAdded(edr);
       } else if (br == null) {
-        session.markDeleted(right.parent(), "element", edl);            
+        session.markDeleted(right.parent(), "element", edl);
       } else {
         ch = comparePrimitivesWithTracking("strength", bl.getStrengthElement(), br.getStrengthElement(), null, IssueSeverity.ERROR, null, edr) || ch;
         def = comparePrimitivesWithTracking("description", bl.getDescriptionElement(), br.getDescriptionElement(), null, IssueSeverity.ERROR, null, edr) || def;
@@ -471,10 +486,10 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       }
 
       def = compareInvariants(path, sliceName, edl, edr, res) || def;
-      
+
       // main todos:
       //  invariants, slicing
-      // mappings 
+      // mappings
     }
     // add the children
     if (ch) {
@@ -492,29 +507,30 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 //        ElementDefinitionSlicingComponent slicingL = left.current().getSlicing();
 //        ElementDefinitionSlicingComponent slicingR = right.current().getSlicing();
 //        // well, this is tricky. If one is sliced, and the other is not, then in general, the union just ignores the slices, and the intersection is the slices.
-//        if (left.current().hasSlicing() && !right.current().hasSlicing()) { 
+//        if (left.current().hasSlicing() && !right.current().hasSlicing()) {
+//          // the super set is done. Any restrictions in the slices are irrelevant to what the super set says, except that we're going sum up the value sets if we can (for documentation purposes) (todo)
 //          // the super set is done. Any restrictions in the slices are irrelevant to what the super set says, except that we're going sum up the value sets if we can (for documentation purposes) (todo)
 //          // the minimum set is the slicing specified in the slicer
 //          subset.setSlicing(slicingL);
-//          // stick everything from the right to do with the slices to the subset 
+//          // stick everything from the right to do with the slices to the subset
 //          copySlices(outcome.subset.getSnapshot().getElement(), left.getStructure().getSnapshot().getElement(), left.slices());
-//        } else if (!left.current().hasSlicing() && right.current().hasSlicing()) { 
+//        } else if (!left.current().hasSlicing() && right.current().hasSlicing()) {
 //          // the super set is done. Any restrictions in the slices are irrelevant to what the super set says, except that we're going sum up the value sets if we can (for documentation purposes) (todo)
 //          // the minimum set is the slicing specified in the slicer
 //          subset.setSlicing(slicingR);
-//          // stick everything from the right to do with the slices to the subset 
+//          // stick everything from the right to do with the slices to the subset
 //          copySlices(outcome.subset.getSnapshot().getElement(), right.getStructure().getSnapshot().getElement(), right.slices());
 //        } else if (isTypeSlicing(slicingL) || isTypeSlicing(slicingR)) {
 //          superset.getSlicing().setRules(SlicingRules.OPEN).setOrdered(false).addDiscriminator().setType(DiscriminatorType.TYPE).setPath("$this");
 //          subset.getSlicing().setRules(slicingL.getRules() == SlicingRules.CLOSED || slicingR.getRules() == SlicingRules.CLOSED ? SlicingRules.OPEN : SlicingRules.CLOSED).setOrdered(false).addDiscriminator().setType(DiscriminatorType.TYPE).setPath("$this");
 //
-//          // the superset is the union of the types 
-//          // the subset is the intersection of them 
+//          // the superset is the union of the types
+//          // the subset is the intersection of them
 //          List<DefinitionNavigator> handled = new ArrayList<>();
 //          for (DefinitionNavigator t : left.slices()) {
 //            DefinitionNavigator r = findMatchingSlice(right.slices(), t);
 //            if (r == null) {
-//              copySlice(outcome.superset.getSnapshot().getElement(), left.getStructure().getSnapshot().getElement(), t);              
+//              copySlice(outcome.superset.getSnapshot().getElement(), left.getStructure().getSnapshot().getElement(), t);
 //            } else {
 //              handled.add(r);
 //              ret = compareElements(outcome, path+":"+t.current().getSliceName(), t, r, t.current().getSliceName()) && ret;
@@ -527,14 +543,14 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 //          }
 //        } else if (slicingMatches(slicingL, slicingR)) {
 //          // if it's the same, we can try matching the slices - though we might have to give up without getting matches correct
-//          // there amy be implied consistency we can't reason about 
+//          // there amy be implied consistency we can't reason about
 //          throw new DefinitionException("Slicing matches but is not handled yet at "+left.current().getId()+": ("+ProfileUtilities.summarizeSlicing(slicingL)+")");
 //        } else  {
 //          // if the slicing is different, we can't compare them - or can we?
 //          throw new DefinitionException("Slicing doesn't match at "+left.current().getId()+": ("+ProfileUtilities.summarizeSlicing(slicingL)+" / "+ProfileUtilities.summarizeSlicing(slicingR)+")");
 //        }
 //      }
-//      // todo: name 
+//      // todo: name
 //    }
 //    return ret;
 //
@@ -552,7 +568,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   private boolean compareDiffChildren(String path, DefinitionNavigator left, DefinitionNavigator right, List<Base> parents, ProfileComparison res) throws DefinitionException, IOException, FHIRFormatError {
     boolean def = false;
-    
+
     if (left.hasSlices() || right.hasSlices()) {
       List<DefinitionNavigator> lc = left.slices();
       List<DefinitionNavigator> rc = right.slices();
@@ -608,9 +624,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private DefinitionNavigator findInSliceList(List<DefinitionNavigator> rc, DefinitionNavigator l) {
-    String s = l.current().getSliceName(); 
+    String s = l.current().getSliceName();
     for (DefinitionNavigator t : rc) {
-      String ts = t.current().getSliceName(); 
+      String ts = t.current().getSliceName();
       if (ts.equals(s)) {
         return t;
       }
@@ -618,9 +634,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     return null;
   }
   private DefinitionNavigator findInList(List<DefinitionNavigator> rc, DefinitionNavigator l) {
-    String s = l.getId(); 
+    String s = l.getId();
     for (DefinitionNavigator t : rc) {
-      String ts = t.getId(); 
+      String ts = t.getId();
       if (tail(ts).equals(tail(s))) {
         return t;
       }
@@ -659,7 +675,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
     return null;
   }
-  
+
 
   private boolean compareType(String string, TypeRefComponent l, TypeRefComponent r, ProfileComparison res) {
     boolean def = false;
@@ -668,7 +684,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     ch = comparePrimitivesWithTracking("profile", l.getProfile(), r.getProfile(), null, IssueSeverity.ERROR, null, r) || ch;
     ch = comparePrimitivesWithTracking("targetProfile", l.getTargetProfile(), r.getTargetProfile(), null, IssueSeverity.ERROR, null, r) || ch;
     ch = comparePrimitivesWithTracking("aggregation", l.getAggregation(), r.getAggregation(), null, IssueSeverity.ERROR, null, r) || ch;
-    def = comparePrimitivesWithTracking("versioning", l.getVersioningElement(), r.getVersioningElement(), null, IssueSeverity.INFORMATION, null, r) || def;    
+    def = comparePrimitivesWithTracking("versioning", l.getVersioningElement(), r.getVersioningElement(), null, IssueSeverity.INFORMATION, null, r) || def;
     if (ch) {
       res.updateContentState(true);
     }
@@ -707,7 +723,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
     return null;
   }
-  
+
 
   private boolean compareInvariant(String string, ElementDefinitionConstraintComponent l, ElementDefinitionConstraintComponent r, ProfileComparison res) {
     boolean def = false;
@@ -716,7 +732,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     def = comparePrimitivesWithTracking("requirements", l.getRequirementsElement(), r.getRequirementsElement(), null, IssueSeverity.INFORMATION, null, r) || def;
     ch = comparePrimitivesWithTracking("severity", l.getSeverityElement(), r.getSeverityElement(), null, IssueSeverity.ERROR, null, r) || ch;
     comparePrimitivesWithTracking("suppress", l.getSuppressElement(), r.getSuppressElement(), null, IssueSeverity.INFORMATION, null, r);
-    def = comparePrimitivesWithTracking("human", l.getHumanElement(), r.getHumanElement(), null, IssueSeverity.INFORMATION, null, r) || def;    
+    def = comparePrimitivesWithTracking("human", l.getHumanElement(), r.getHumanElement(), null, IssueSeverity.INFORMATION, null, r) || def;
     ch = comparePrimitivesWithTracking("expression", l.getExpressionElement(), r.getExpressionElement(), null, IssueSeverity.ERROR, null, r) || ch;
     if (ch) {
       res.updateContentState(true);
@@ -737,13 +753,13 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 //  }
 //
   private String toString(DataType val, boolean left) throws IOException {
-    if (val instanceof PrimitiveType) 
+    if (val instanceof PrimitiveType)
       return "'" + ((PrimitiveType) val).getValueAsString()+"'";
-    
+
     IParser jp = new JsonParser();
     return jp.composeString(val, "value");
   }
-  
+
   private String stripLinks(String s) {
     while (s.contains("](")) {
       int i = s.indexOf("](");
@@ -755,7 +771,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
     return s;
   }
-  
+
   private boolean rule(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, boolean test, String path, String message) {
     if (!test)  {
       vm(IssueSeverity.ERROR, message, path, comp.getMessages(), res.getMessages());
@@ -869,6 +885,24 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
   }
 
+  private void checkExtensionBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, DefinitionNavigator left, DefinitionNavigator right){
+
+    //If extension is not in core where core is left and IG is right
+
+    if (right.path().contains("extension")){
+      List<DefinitionNavigator> leftSlices = left.slices();
+      List<DefinitionNavigator> rightSlices = right.slices();
+
+      List<String> leftSliceIds = leftSlices.stream().map(DefinitionNavigator::getId).collect(Collectors.toList());
+
+      for (DefinitionNavigator slice : rightSlices){
+        if (!leftSliceIds.contains(slice.getId())) res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.ERROR, "Break Reason: Extension: " + slice.getId(), slice.getId()), new ElementDefinitionNode(slice.getStructure(), slice.current())));
+      }
+    }
+
+
+  }
+
   private void checkDatatypeBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, List<TypeRefComponent> left, List<TypeRefComponent> right) {
     left.stream().sorted();
     right.stream().sorted();
@@ -879,7 +913,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
           if (leftType.toString().equals(rightType.toString())) {
             matchFound = true;
             break;
-          }     
+          }
         }
         if (matchFound) {
           break;
@@ -906,32 +940,32 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     if (leftMin != rightMin) {
       if (leftMin == 0) {
         vm(IssueSeverity.INFORMATION, "Element minimum cardinalities differ:  '"+leftMin+"' vs '"+rightMin+"'", path, comp.getMessages(), res.getMessages());
-      } else if (rightMin == 0) { 
+      } else if (rightMin == 0) {
         vm(IssueSeverity.INFORMATION, "Element minimum cardinalities differ:  '"+leftMin+"' vs '"+rightMin+"'", path, comp.getMessages(), res.getMessages());
       } else {
         vm(IssueSeverity.INFORMATION, "Element minimum cardinalities differ:  '"+leftMin+"' vs '"+rightMin+"'", path, comp.getMessages(), res.getMessages());
       }
-    }    
+    }
     if (leftMax != rightMax) {
       if (leftMax == Integer.MAX_VALUE) {
         vm(IssueSeverity.INFORMATION, "Element maximum cardinalities differ:  '"+leftMax+"' vs '"+rightMax+"'", path, comp.getMessages(), res.getMessages());
-      } else if (rightMax == Integer.MAX_VALUE) { 
+      } else if (rightMax == Integer.MAX_VALUE) {
         vm(IssueSeverity.INFORMATION, "Element maximum cardinalities differ:  '"+leftMax+"' vs '"+rightMax+"'", path, comp.getMessages(), res.getMessages());
       } else {
         vm(IssueSeverity.INFORMATION, "Element maximum cardinalities differ:  '"+leftMax+"' vs '"+rightMax+"'", path, comp.getMessages(), res.getMessages());
       }
-    }    
+    }
 //    rule(comp, res, subset.getMax().equals("*") || Integer.parseInt(subset.getMax()) >= subset.getMin(), path, "Cardinality Mismatch: "+card(left)+"/"+card(right));
 
     // cross comparison - if max > min in either direction, there can be no instances that are valid against both
     if (leftMax < rightMin) {
-      vm(IssueSeverity.ERROR, "Element minimum cardinalities conflict:  '"+leftMin+".."+leftMax+"' vs '"+rightMin+".."+rightMax+"': No instances can be valid against both profiles", path, comp.getMessages(), res.getMessages());      
+      vm(IssueSeverity.ERROR, "Element minimum cardinalities conflict:  '"+leftMin+".."+leftMax+"' vs '"+rightMin+".."+rightMax+"': No instances can be valid against both profiles", path, comp.getMessages(), res.getMessages());
     }
     if (rightMax < leftMin) {
-      vm(IssueSeverity.ERROR, "Element minimum cardinalities conflict:  '"+leftMin+".."+leftMax+"' vs '"+rightMin+".."+rightMax+"': No instances can be valid against both profiles", path, comp.getMessages(), res.getMessages());            
+      vm(IssueSeverity.ERROR, "Element minimum cardinalities conflict:  '"+leftMin+".."+leftMax+"' vs '"+rightMin+".."+rightMax+"': No instances can be valid against both profiles", path, comp.getMessages(), res.getMessages());
     }
   }
-  
+
   private int unionMin(int left, int right) {
     if (left > right)
       return right;
@@ -954,9 +988,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private IntegerType intersectMaxLength(int left, int right) {
-    if (left == 0) 
+    if (left == 0)
       left = Integer.MAX_VALUE;
-    if (right == 0) 
+    if (right == 0)
       right = Integer.MAX_VALUE;
     if (left < right)
       return left == Integer.MAX_VALUE ? null : new IntegerType(left);
@@ -965,9 +999,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private IntegerType unionMaxLength(int left, int right) {
-    if (left == 0) 
+    if (left == 0)
       left = Integer.MAX_VALUE;
-    if (right == 0) 
+    if (right == 0)
       right = Integer.MAX_VALUE;
     if (left < right)
       return right == Integer.MAX_VALUE ? null : new IntegerType(right);
@@ -981,12 +1015,12 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   private Collection<? extends TypeRefComponent> unionTypes(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, List<TypeRefComponent> left, List<TypeRefComponent> right, Resource leftSrc, Resource rightSrc) throws DefinitionException, IOException, FHIRFormatError {
     List<TypeRefComponent> result = new ArrayList<TypeRefComponent>();
-    for (TypeRefComponent l : left) 
+    for (TypeRefComponent l : left)
       checkAddTypeUnion(comp, res, path, result, l, session.getContextLeft(), leftSrc);
-    for (TypeRefComponent r : right) 
+    for (TypeRefComponent r : right)
       checkAddTypeUnion(comp, res, path, result, r, session.getContextRight(), rightSrc);
     return result;
-  }    
+  }
 
   private void checkAddTypeUnion(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, List<TypeRefComponent> results, TypeRefComponent nw, IWorkerContext ctxt, Resource nwSource) throws DefinitionException, IOException, FHIRFormatError {
     boolean pfound = false;
@@ -1002,12 +1036,12 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
         if (!ex.hasProfile() && !nw.hasProfile())
           pfound = true;
         else if (!ex.hasProfile()) {
-          pfound = true; 
+          pfound = true;
         } else if (!nw.hasProfile()) {
           pfound = true;
           ex.setProfile(null);
         } else {
-          // both have profiles. Is one derived from the other? 
+          // both have profiles. Is one derived from the other?
           StructureDefinition sdex = ((IWorkerContext) ex.getUserData(UserDataNames.COMP_CONTEXT)).fetchResource(StructureDefinition.class, ex.getProfile().get(0).getValue(), nwSource);
           StructureDefinition sdnw = ctxt.fetchResource(StructureDefinition.class, nw.getProfile().get(0).getValue(), nwSource);
           if (sdex != null && sdnw != null) {
@@ -1026,16 +1060,16 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
               }
             }
           }
-        }        
+        }
         if (!ex.hasTargetProfile() && !nw.hasTargetProfile())
           tfound = true;
         else if (!ex.hasTargetProfile()) {
-          tfound = true; 
+          tfound = true;
         } else if (!nw.hasTargetProfile()) {
           tfound = true;
           ex.setTargetProfile(null);
         } else {
-          // both have profiles. Is one derived from the other? 
+          // both have profiles. Is one derived from the other?
           StructureDefinition sdex = ((IWorkerContext) ex.getUserData(UserDataNames.COMP_CONTEXT)).fetchResource(StructureDefinition.class, ex.getTargetProfile().get(0).getValue(), nwSource);
           StructureDefinition sdnw = ctxt.fetchResource(StructureDefinition.class, nw.getTargetProfile().get(0).getValue(), nwSource);
           if (sdex != null && sdnw != null) {
@@ -1059,12 +1093,12 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
               }
             }
           }
-        }        
+        }
       }
     }
     if (!tfound || !pfound) {
       nw.setUserData(UserDataNames.COMP_CONTEXT, ctxt);
-      results.add(nw);      
+      results.add(nw);
     }
   }
 
@@ -1101,9 +1135,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       TypeRefComponent c = l.copy();
       for (TypeRefComponent r : right) {
         if (!l.hasProfile() && !r.hasProfile()) {
-          pfound = true;    
+          pfound = true;
         } else if (!r.hasProfile()) {
-          pfound = true; 
+          pfound = true;
         } else if (!l.hasProfile()) {
           pfound = true;
           c.setProfile(r.getProfile());
@@ -1133,9 +1167,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
           }
         }
         if (!l.hasTargetProfile() && !r.hasTargetProfile()) {
-          tfound = true;    
+          tfound = true;
         } else if (!r.hasTargetProfile()) {
-          tfound = true; 
+          tfound = true;
         } else if (!l.hasTargetProfile()) {
           tfound = true;
           c.setTargetProfile(r.getTargetProfile());
@@ -1200,19 +1234,19 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     ElementDefinitionBindingComponent right = rDef.getBinding();
     if (Base.compareDeep(left, right, false)) {
       subset.setBinding(left);
-      superset.setBinding(right);      
+      superset.setBinding(right);
     }
 
     // if they're both examples/preferred then:
     // subset: left wins if they're both the same
-    // superset: 
+    // superset:
     if (isPreferredOrExample(left) && isPreferredOrExample(right)) {
       if (right.getStrength() == BindingStrength.PREFERRED && left.getStrength() == BindingStrength.EXAMPLE && !Base.compareDeep(left.getValueSet(), right.getValueSet(), false)) {
         vm(IssueSeverity.INFORMATION, "Example/preferred bindings differ at "+path+" using binding from "+comp.getRight().getName(), path, comp.getMessages(), res.getMessages());
         subset.setBinding(right);
         superset.setBinding(unionBindings(comp, res, path, left, right, leftSrc, rightSrc));
       } else {
-        if ((right.getStrength() != BindingStrength.EXAMPLE || left.getStrength() != BindingStrength.EXAMPLE) && !Base.compareDeep(left.getValueSet(), right.getValueSet(), false) ) { 
+        if ((right.getStrength() != BindingStrength.EXAMPLE || left.getStrength() != BindingStrength.EXAMPLE) && !Base.compareDeep(left.getValueSet(), right.getValueSet(), false) ) {
           vm(IssueSeverity.INFORMATION, "Example/preferred bindings differ at "+path+" using binding from "+comp.getLeft().getName(), path, comp.getMessages(), res.getMessages());
         }
         subset.setBinding(left);
@@ -1254,12 +1288,12 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       return true;
     } else if (!left.hasValueSet()) {
       vm(IssueSeverity.ERROR, "No left Value set at "+path, path, comp.getMessages(), res.getMessages());
-      return true;      
+      return true;
     } else if (!right.hasValueSet()) {
       vm(IssueSeverity.ERROR, "No right Value set at "+path, path, comp.getMessages(), res.getMessages());
-      return true;      
+      return true;
     } else {
-      // ok, now we compare the value sets. This may be unresolvable. 
+      // ok, now we compare the value sets. This may be unresolvable.
       ValueSet lvs = resolveVS(comp.getLeft(), left.getValueSet(), leftSrc, session.getContextLeft());
       ValueSet rvs = resolveVS(comp.getRight(), right.getValueSet(), rightSrc, session.getContextRight());
       if (lvs == null) {
@@ -1267,7 +1301,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
         return true;
       } else if (rvs == null) {
         vm(IssueSeverity.ERROR, "Unable to resolve right value set "+right.getValueSet().toString()+" at "+path, path, comp.getMessages(), res.getMessages());
-        return true;        
+        return true;
       } else if (sameValueSets(lvs, rvs)) {
         subBinding.setValueSet(lvs.getUrl());
         superBinding.setValueSet(lvs.getUrl());
@@ -1316,7 +1350,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     return result;
   }
 
-  // we can't really know about constraints. We create warnings, and collate them 
+  // we can't really know about constraints. We create warnings, and collate them
   private List<ElementDefinitionConstraintComponent> unionConstraints(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, List<ElementDefinitionConstraintComponent> left, List<ElementDefinitionConstraintComponent> right) {
     List<ElementDefinitionConstraintComponent> result = new ArrayList<ElementDefinitionConstraintComponent>();
     for (ElementDefinitionConstraintComponent l : left) {
@@ -1480,11 +1514,11 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     return gen.generate(model, prefix, 0, null);
   }
 
-  public XhtmlNode renderUnion(ProfileComparison comp, String id, String prefix, String corePath) throws FHIRException, IOException {    
+  public XhtmlNode renderUnion(ProfileComparison comp, String id, String prefix, String corePath) throws FHIRException, IOException {
     StructureDefinitionRenderer sdr = new StructureDefinitionRenderer(new RenderingContext(utilsLeft.getContext(), null, utilsLeft.getTerminologyServiceOptions(), corePath, prefix, utilsLeft.getContext().getLocale(), ResourceRendererMode.TECHNICAL, GenerationRules.IG_PUBLISHER).setPkp(this));
     return sdr.generateTable(new RenderingStatus(), corePath, comp.union, false, prefix, false, id, true, corePath, prefix, false, true, null, false, sdr.getContext().withUniqueLocalPrefix("u"), "u", null, "C1");
   }
-      
+
 
   public XhtmlNode renderIntersection(ProfileComparison comp, String id, String prefix, String corePath) throws FHIRException, IOException {
     StructureDefinitionRenderer sdr = new StructureDefinitionRenderer(new RenderingContext(utilsLeft.getContext(), null, utilsLeft.getTerminologyServiceOptions(), corePath, prefix, utilsLeft.getContext().getLocale(), ResourceRendererMode.TECHNICAL, GenerationRules.IG_PUBLISHER).setPkp(this));
@@ -1494,7 +1528,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   private void genElementComp(String defPath, String anchorPrefix, HierarchicalTableGenerator gen, List<Row> rows, StructuralMatch<ElementDefinitionNode> combined, String corePath, String prefix, Row slicingRow, boolean root) throws IOException {
     Row originalRow = slicingRow;
     Row typesRow = null;
-    
+
     List<StructuralMatch<ElementDefinitionNode>> children = combined.getChildren();
 
     Row row = gen.new Row();
@@ -1547,7 +1581,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       StructureDefinitionRenderer sdrRight= new StructureDefinitionRenderer(new RenderingContext(utilsRight.getContext(), null, utilsRight.getTerminologyServiceOptions(), corePath, prefix, utilsRight.getContext().getLocale(), ResourceRendererMode.TECHNICAL, GenerationRules.IG_PUBLISHER).setPkp(this));
 
 
-        
+
       Cell nc;
       String leftColor = !combined.hasLeft() ? COLOR_NO_ROW_LEFT : combined.hasErrors() ? COLOR_DIFFERENT : null;
       String rightColor = !combined.hasRight() ? COLOR_NO_ROW_LEFT : combined.hasErrors() ? COLOR_DIFFERENT : null;
@@ -1637,9 +1671,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     // TODO Auto-generated method stub
     return false;
   }
-  
 
-  
+
+
 
 private String tail(String path) {
   if (path.contains("."))
@@ -1713,6 +1747,6 @@ public String getDefinitionsName(Resource r) {
   // TODO Auto-generated method stub
   return null;
 }
-  
+
 
 }
