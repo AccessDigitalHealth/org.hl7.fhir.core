@@ -896,7 +896,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       List<String> leftSliceIds = leftSlices.stream().map(DefinitionNavigator::getId).collect(Collectors.toList());
 
       for (DefinitionNavigator slice : rightSlices){
-        if (!leftSliceIds.contains(slice.getId())) res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.ERROR, "Break Reason: Extension: " + slice.getId(), slice.getId()), new ElementDefinitionNode(slice.getStructure(), slice.current())));
+        if (!leftSliceIds.contains(slice.getId())) {
+          res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.ERROR, "Break Reason: Extension: " + slice.getId(), slice.getId()), new ElementDefinitionNode(slice.getStructure(), slice.current())));
+        }
       }
     }
 
@@ -1459,7 +1461,13 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private void fillCsvRow(ElementDefinition def, StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
-    String path = combined.either().getDef().getPath();
+
+    ElementDefinition combinedDef = combined.either().getDef();
+    String path = combinedDef.getPath();
+
+    if (combinedDef.getSliceName() != null){
+      path += ":" + combinedDef.getSliceName();
+    }
 
     csvData.append(escapeCsv(path)).append(",");
     csvData.append(escapeCsv(Boolean.toString(def.getMustSupport()))).append(",");
