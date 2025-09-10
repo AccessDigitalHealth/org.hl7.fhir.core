@@ -278,8 +278,39 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     checkDatatypeBreak(comp, res, path, left.current().getType(), right.current().getType());
     checkMustSupportBreak(comp, res, path, left.current().getMustSupport(), right.current().getMustSupport());
     checkBindingBreak(comp, res, path, left.current().getBinding(), right.current().getBinding());
-    checkExtensionBreak(comp, res, path, left, right);
-    //Check extension break is appended onto "added this element" logic
+
+    if (right.path().contains("extension") && left.path().contains("extension")){
+      List<DefinitionNavigator> leftSlices = left.slices();
+      List<DefinitionNavigator> rightSlices = right.slices();
+
+
+      if (leftSlices != null && rightSlices != null){
+        for (DefinitionNavigator rightSlice: rightSlices) {
+            for (DefinitionNavigator leftSlice : leftSlices){
+              if (leftSlice.getId().equals(rightSlice.getId())){
+                res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(new ElementDefinitionNode(leftSlice.getStructure(), leftSlice.current()), new ElementDefinitionNode(rightSlice.getStructure(), rightSlice.current())));
+              }
+            }
+        }
+        for (StructuralMatch<ElementDefinitionNode> nodeStructuralMatch: res.getChildren()){
+          ElementDefinition leftSlice = nodeStructuralMatch.getLeft().getDef();
+          ElementDefinition rightSlice = nodeStructuralMatch.getRight().getDef();
+          leftMin = leftSlice.getMin();
+          rightMin = rightSlice.getMin();
+          leftMax = "*".equals(leftSlice.getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(leftSlice.getMax(), -1);
+          rightMax = "*".equals(rightSlice.getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(rightSlice.getMax(), -1);
+
+          checkMinMax(comp, nodeStructuralMatch, leftSlice.getId(), leftMin, rightMin, leftMax, rightMax);
+          checkCardinalityBreak(comp, nodeStructuralMatch, leftSlice.getId(), leftMin, rightMin, leftMax, rightMax);
+          checkDatatypeBreak(comp, nodeStructuralMatch, leftSlice.getId(), leftSlice.getType(), rightSlice.getType());
+          checkMustSupportBreak(comp, nodeStructuralMatch, leftSlice.getId(), leftSlice.getMustSupport(), rightSlice.getMustSupport());
+          checkBindingBreak(comp, nodeStructuralMatch, leftSlice.getId(), leftSlice.getBinding(), rightSlice.getBinding());
+        }
+        checkExtensionBreak(comp, res, path, left, right);
+      }
+    }
+
+
     superset.setMin(unionMin(leftMin, rightMin));
     superset.setMax(unionMax(leftMax, rightMax, left.current().getMax(), right.current().getMax()));
     subset.setMin(intersectMin(leftMin, rightMin));
@@ -394,10 +425,6 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       }
     }
     for (DefinitionNavigator r : rc) {
-      if (r.path().contains("extension")){
-        System.out.println(r);
-      }
-
       if (!matchR.contains(r)) {
         comp.getUnion().getSnapshot().getElement().add(r.current().copy());
         if (r.path().contains("extension")){
@@ -869,7 +896,8 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
    } else { // Core other binding
      if (Objects.nonNull(left.getValueSet()) && Objects.nonNull(right.getValueSet())) {
       if (!left.getValueSet().equals(right.getValueSet())) {
-        vm(IssueSeverity.WARNING, "Binding - Default(NonBreak)", path, comp.getMessages(), res.getMessages());
+        if (left.getValueSet().contains("http://hl7.org/fhir/ValueSet/")) vm(IssueSeverity.WARNING, "Binding - Default(NonBreak)", path, comp.getMessages(), res.getMessages());
+        else vm(IssueSeverity.WARNING, "Binding - ValueSet(NonBreak)", path, comp.getMessages(), res.getMessages());
       }
      }
    }
@@ -897,6 +925,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
       for (DefinitionNavigator slice : rightSlices){
         if (!leftSliceIds.contains(slice.getId())) {
+          //vm(IssueSeverity.ERROR, "Break Reason: Extension", slice.getId(), comp.getMessages(), res.getMessages());
           res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.ERROR, "Break Reason: Extension: " + slice.getId(), slice.getId()), new ElementDefinitionNode(slice.getStructure(), slice.current())));
         }
       }
@@ -934,6 +963,12 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
     if (rightMax > leftMax) {
         vm(IssueSeverity.ERROR, "Cardinality", path, comp.getMessages(), res.getMessages());
+    }
+    if (rightMax < leftMax){
+      vm(IssueSeverity.ERROR, "Cardinality (Non-break)", path, comp.getMessages(), res.getMessages());
+    }
+    if (rightMin > leftMin){
+      vm(IssueSeverity.ERROR, "Cardinality (Non-break)", path, comp.getMessages(), res.getMessages());
     }
   }
 
@@ -1429,11 +1464,50 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     StringBuilder csvData = new StringBuilder();
     csvData.append("Path,L Must Support,L Min,L Max,L Type,L Description/Constraints,"); // CSV header
     csvData.append("Path,R Must Support,R Min,R Max,R Type,R Description/Constraints,"); // CSV header
-    csvData.append("Comments\n");
+    csvData.append("Comments,");
+    csvData.append("Other breaks\n");
 
     genElementCompCsv(csvData, comp.combined);
 
     return csvData.toString();
+  }
+
+  private static final Map<String, Integer> PRIORITY_MAP = Map.ofEntries(
+    Map.entry("Cardinality", 0),
+    Map.entry("Datatype", 1),
+    Map.entry("MustSupport", 2),
+    Map.entry("Binding – AbsentUnknown", 3),
+    Map.entry("Binding – Default(NonBreak)", 4),
+    Map.entry("Binding – Default", 5),
+    Map.entry("Binding – ValueSet", 6),
+    Map.entry("Binding – ValueSet(NonBreak)", 7),
+    Map.entry("Binding – Strength(Weaker)", 8),
+    Map.entry("Binding – Strength(Stronger)", 9),
+    Map.entry("Binding – NotInCore(NonBreak)", 10),
+    Map.entry("Extension", 11),
+    Map.entry("Normalization", 12)
+  );
+
+  public static String sortMessages(StructuralMatch<ElementDefinitionNode> combined) {
+    String message = combined.getMessages().stream()
+      .map(v -> v.getMessage())
+      .sorted(Comparator.comparingInt(StructureDefinitionComparer::getRank))
+      .collect(Collectors.joining("|"));
+
+    int index = message.indexOf('|');
+    String messageWithComma= (index == -1) ? message
+      : message.substring(0, index) + "," + message.substring(index + 1);
+
+    return messageWithComma;
+
+  }
+
+  private static int getRank(String msg) {
+    return PRIORITY_MAP.entrySet().stream()
+      .filter(e -> msg.contains(e.getKey()))
+      .map(Map.Entry::getValue)
+      .findFirst()
+      .orElse(PRIORITY_MAP.size()); // unknowns go at the end
   }
 
   private void genElementCompCsv(StringBuilder csvData, StructuralMatch<ElementDefinitionNode> combined) {
@@ -1449,14 +1523,12 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       csvData.append(",").append(",").append(",").append(",").append(",").append(",");
     }
 
-    combined.getMessages().forEach(validationMessage -> {
-      csvData.append(validationMessage.getMessage()).append(" | ");
-    });
 
+    csvData.append(sortMessages(combined));
     csvData.append("\n");
 
     for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
-      genElementCompCsv(csvData, child);
+      if (!child.getMessages().isEmpty()) genElementCompCsv(csvData, child);
     }
   }
 
