@@ -251,6 +251,7 @@ public class ValidatorCli {
 
     args = addAdditionalParamsForIpsParam(args);
     final ValidationContext validationContext = Params.loadValidationContext(args);
+    validationContext.addIg("hl7.fhir.us.core#8.0.0");
     try {
       validatorCli.readParamsAndExecuteTask(validationContext, args);
     } catch (ENoDump e) {
