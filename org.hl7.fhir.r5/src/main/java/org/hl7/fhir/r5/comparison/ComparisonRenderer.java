@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,6 +13,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
 import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.exceptions.DefinitionException;
 import org.hl7.fhir.exceptions.FHIRException;
@@ -150,7 +154,7 @@ public class ComparisonRenderer implements IEvaluationContext {
     }
   }
 
-  private void renderComparison(String id, ResourceComparison comp) throws IOException, FHIRFormatError, DefinitionException, FHIRException, EOperationOutcome {    
+  private void renderComparison(String id, ResourceComparison comp) throws IOException, FHIRFormatError, DefinitionException, FHIRException, EOperationOutcome, SQLException {
     if (comp instanceof ProfileComparison) {
       System.out.println("comp instanceof ProfileComparison" + comp.getId());
       renderProfile(id, (ProfileComparison) comp);
@@ -250,7 +254,7 @@ public class ComparisonRenderer implements IEvaluationContext {
     FileUtilities.stringToFile(cnt, file(comp.getId()+"-intersection.html"));        
   }
 
-  private void renderProfile(String id, ProfileComparison comp) throws IOException {
+  private void renderProfile(String id, ProfileComparison comp) throws IOException, SQLException {
     String template = templates.get("Profile");
     Map<String, Base> vars = new HashMap<>();
     StructureDefinitionComparer cs = new StructureDefinitionComparer(session, new ProfileUtilities(session.getContextLeft(), null, session.getPkpLeft()), 
@@ -285,6 +289,17 @@ public class ComparisonRenderer implements IEvaluationContext {
 
     System.out.println("TECHTEAM render csv CHANGED " + comp.getId());
     String csv = cs.renderStructureCsv(comp);
+    EntityManagerFactory emf = Persistence.createEntityManagerFactory("comparisonPU");
+    EntityManager em = emf.createEntityManager();
+
+    em.getTransaction().begin();
+    cs.persistStructureComparison(comp, em);
+    em.getTransaction().commit();
+
+    em.close();
+    emf.close();
+
+    cs.exportDbToXlsx();
     FileUtilities.stringToFile(csv, file(comp.getId() + "-sd-comparison.csv"));
   }
   

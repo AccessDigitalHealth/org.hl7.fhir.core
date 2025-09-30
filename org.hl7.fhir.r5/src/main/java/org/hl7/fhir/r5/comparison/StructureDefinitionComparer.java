@@ -1,9 +1,14 @@
 package org.hl7.fhir.r5.comparison;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
+import java.util.Date;
 import java.util.stream.Collectors;
 
+import entities.ComparisonRow;
+import entities.USCoreComparisonRow;
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -52,7 +57,10 @@ import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.Cell;
 import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.Row;
 import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.TableGenerationMode;
 import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.TableModel;
-
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.io.FileOutputStream;
+import java.sql.*;
 import ca.uhn.fhir.util.CollectionUtil;
 
 import org.hl7.fhir.utilities.xhtml.XhtmlNode;
@@ -255,10 +263,10 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     // left will win for example
     subset.setExample(left.current().hasExample() ? left.current().getExample() : right.current().getExample());
 
-    if (left.current().getMustSupport() != right.current().getMustSupport()) {
-      vm(IssueSeverity.WARNING, "Elements differ in definition for mustSupport: '"+left.current().getMustSupport()+"' vs '"+right.current().getMustSupport()+"'", path, comp.getMessages(), res.getMessages());
-
-    }
+//    if (left.current().getMustSupport() != right.current().getMustSupport()) {
+//      vm(IssueSeverity.WARNING, "Elements differ in definition for mustSupport: '"+left.current().getMustSupport()+"' vs '"+right.current().getMustSupport()+"'", path, comp.getMessages(), res.getMessages());
+//
+//    }
     subset.setMustSupport(left.current().getMustSupport() || right.current().getMustSupport());
     def = comparePrimitivesWithTracking("mustSupport", left.current().getMustSupportElement(), right.current().getMustSupportElement(), null, IssueSeverity.INFORMATION, null, right.current()) || def;
 
@@ -273,7 +281,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     int leftMax = "*".equals(left.current().getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(left.current().getMax(), -1);
     int rightMax = "*".equals(right.current().getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(right.current().getMax(), -1);
 
-    checkMinMax(comp, res, path, leftMin, rightMin, leftMax, rightMax);
+    //checkMinMax(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     checkCardinalityBreak(comp, res, path, leftMin, rightMin, leftMax, rightMax);
     checkDatatypeBreak(comp, res, path, left.current().getType(), right.current().getType());
     checkMustSupportBreak(comp, res, path, left.current().getMustSupport(), right.current().getMustSupport());
@@ -300,7 +308,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
           leftMax = "*".equals(leftSlice.getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(leftSlice.getMax(), -1);
           rightMax = "*".equals(rightSlice.getMax()) ? Integer.MAX_VALUE : Utilities.parseInt(rightSlice.getMax(), -1);
 
-          checkMinMax(comp, nodeStructuralMatch, leftSlice.getId(), leftMin, rightMin, leftMax, rightMax);
+          //checkMinMax(comp, nodeStructuralMatch, leftSlice.getId(), leftMin, rightMin, leftMax, rightMax);
           checkCardinalityBreak(comp, nodeStructuralMatch, leftSlice.getId(), leftMin, rightMin, leftMax, rightMax);
           checkDatatypeBreak(comp, nodeStructuralMatch, leftSlice.getId(), leftSlice.getType(), rightSlice.getType());
           checkMustSupportBreak(comp, nodeStructuralMatch, leftSlice.getId(), leftSlice.getMustSupport(), rightSlice.getMustSupport());
@@ -318,7 +326,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
     superset.getType().addAll(unionTypes(comp, res, path, left.current().getType(), right.current().getType(), left.getStructure(), right.getStructure()));
     subset.getType().addAll(intersectTypes(comp, res, subset, path, left.current().getType(), right.current().getType()));
-    rule(comp, res, !subset.getType().isEmpty() || (!left.current().hasType() && !right.current().hasType()), path, "Type Mismatch: "+typeCode(left)+" vs "+typeCode(right));
+    //rule(comp, res, !subset.getType().isEmpty() || (!left.current().hasType() && !right.current().hasType()), path, "Type Mismatch: "+typeCode(left)+" vs "+typeCode(right));
     // rule(comp, res, !CollectionUtils.isEqualCollection(left.current().getType(), right.current().getType()), path, "DataType");
     //    <fixed[x]><!-- ?? 0..1 * Value must be exactly this --></fixed[x]>
     //    <pattern[x]><!-- ?? 0..1 * Value must have at least these property values --></pattern[x]>
@@ -433,9 +441,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
             res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.ERROR, "Break Reason: Extension: " + slice.getId(), slice.getId()), new ElementDefinitionNode(slice.getStructure(), slice.current())));
           }
         }
-        else {
-          res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.INFORMATION, "Added this element", path), new ElementDefinitionNode(r.getStructure(), r.current())));
-        }
+//        else {
+//          res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(vmI(IssueSeverity.INFORMATION, "Added this element", path), new ElementDefinitionNode(r.getStructure(), r.current())));
+//        }
       }
     }
     return def;
@@ -1460,6 +1468,136 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     return ctxt.fetchResource(ValueSet.class, vsRef, src);
   }
 
+  public void persistStructureComparison(ProfileComparison comp, EntityManager em) {
+    if (comp.combined.getRight().getSrc().getSourcePackage().getId().contains("hl7.fhir.us.core")){
+      persistUSCoreComp(comp.combined, em);
+    }
+    else{
+      persistElementComp(comp.combined, em);
+    }
+  }
+
+  private void persistUSCoreComp(StructuralMatch<ElementDefinitionNode> combined, EntityManager em){
+    USCoreComparisonRow usRow = new USCoreComparisonRow();
+    if (combined.hasRight()) {
+      fillUSCoreRowFromDefinition(usRow, combined.getRight().getDef(), combined);
+    }
+
+    em.persist(usRow);
+    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+      if (!child.getMessages().isEmpty()) {
+        persistElementComp(child, em);
+      }
+    }
+  }
+
+
+  private void fillUSCoreRowFromDefinition(USCoreComparisonRow usRow, ElementDefinition def,
+                                     StructuralMatch<ElementDefinitionNode> combined) {
+
+    ElementDefinition combinedDef = combined.either().getDef();
+    String path = combinedDef.getPath();
+    if (combinedDef.getSliceName() != null) {
+      path += ":" + combinedDef.getSliceName();
+    }
+
+    usRow.setPath(path);
+    usRow.setMS(def.getMustSupport());
+    usRow.setDescription(def.getShort() + "\n" + renderBindingCsv(def.getBinding()));
+    usRow.setMin(def.getMin());
+    usRow.setMax(def.getMax());
+  }
+
+  private void persistElementComp(StructuralMatch<ElementDefinitionNode> combined, EntityManager em) {
+    ComparisonRow row = new ComparisonRow();
+
+    if (combined.hasLeft()) {
+      fillRowFromDefinition(row, combined.getLeft().getDef(), true, combined);
+    }
+    if (combined.hasRight()) {
+      fillRowFromDefinition(row, combined.getRight().getDef(), false, combined);
+    }
+
+    String breakMessages = sortMessages(combined);
+
+    String[] breaks = breakMessages.split(",", 2);
+    String mainBreak = breaks[0];
+    String otherBreaks = (breaks.length > 1) ? breaks[1] : "";
+
+    row.setBreaks(mainBreak);
+    row.setOtherBreaks(otherBreaks);
+
+    em.persist(row);
+    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+      if (!child.getMessages().isEmpty()) {
+        persistElementComp(child, em);
+      }
+    }
+  }
+
+  private void fillRowFromDefinition(ComparisonRow row, ElementDefinition def, boolean isLeft,
+                                     StructuralMatch<ElementDefinitionNode> combined) {
+
+    ElementDefinition combinedDef = combined.either().getDef();
+    String path = combinedDef.getPath();
+    if (combinedDef.getSliceName() != null) {
+      path += ":" + combinedDef.getSliceName();
+    }
+
+    if (isLeft) {
+      row.setLeftPath(path);
+      row.setLeftMS(def.getMustSupport());
+      row.setLeftMin(def.getMin());
+      row.setLeftMax(def.getMax());
+      row.setLeftType(renderTypeCsv(def.getType()));
+      row.setLeftDescription(def.getShort() + "\n" + renderBindingCsv(def.getBinding()));
+    } else {
+      row.setRightPath(path);
+      row.setRightMS(def.getMustSupport());
+      row.setRightMin(def.getMin());
+      row.setRightMax(def.getMax());
+      row.setRightType(renderTypeCsv(def.getType()));
+      row.setRightDescription(def.getShort() + "\n" + renderBindingCsv(def.getBinding()));
+    }
+  }
+
+  public void exportDbToXlsx() throws SQLException, IOException {
+    String jdbcUrl = "jdbc:h2:file:./data/mydb";
+    String user = "sa";
+    String password = "";
+
+    try (Connection conn = DriverManager.getConnection(jdbcUrl, user, password)) {
+
+      String sql = "SELECT * FROM ProfileComparison";
+      PreparedStatement stmt = conn.prepareStatement(sql);
+      ResultSet rs = stmt.executeQuery();
+      Workbook workbook = new XSSFWorkbook();
+      Sheet sheet = workbook.createSheet("Comparison Data");
+      ResultSetMetaData meta = rs.getMetaData();
+      org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+      int columnCount = meta.getColumnCount();
+      for (int i = 1; i <= columnCount; i++) {
+        org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i - 1);
+        cell.setCellValue(meta.getColumnName(i));
+      }
+      int rowIdx = 1;
+      while (rs.next()) {
+        org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowIdx++);
+        for (int i = 1; i <= columnCount; i++) {
+          row.createCell(i - 1).setCellValue(rs.getString(i));
+        }
+      }
+      try (FileOutputStream fileOut = new FileOutputStream("comparison_export.xlsx")) {
+        workbook.write(fileOut);
+      } catch (FileNotFoundException e) {
+        throw new RuntimeException(e);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      workbook.close();
+    }
+  }
   public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
     StringBuilder csvData = new StringBuilder();
     csvData.append("Path,L Must Support,L Min,L Max,L Type,L Description/Constraints,"); // CSV header

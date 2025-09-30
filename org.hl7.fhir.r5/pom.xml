@@ -36,8 +36,11 @@
 			</exclusions>
 		</dependency>
 
-
-
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>persistence</artifactId>
+			<version>6.5.29-SNAPSHOT</version>
+		</dependency>
 		<!-- UCUM -->
 		<dependency>
 			<groupId>org.fhir</groupId>
@@ -199,8 +202,14 @@
             <version>1.2023.9</version>
             <scope>compile</scope>
         </dependency>
-        
-    </dependencies>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>persistence</artifactId>
+			<version>6.5.29-SNAPSHOT</version>
+			<scope>compile</scope>
+		</dependency>
+
+	</dependencies>
 
 	<build>
 		<plugins>

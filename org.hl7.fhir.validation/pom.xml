@@ -75,7 +75,11 @@
             <artifactId>org.hl7.fhir.convertors</artifactId>
             <version>${project.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>ca.uhn.hapi.fhir</groupId>
+            <artifactId>persistence</artifactId>
+            <version>6.5.29-SNAPSHOT</version>
+        </dependency>
         <!-- Validation resources (StructureDefinitions, ValueSets, etc.) -->
         <dependency>
             <groupId>ca.uhn.hapi.fhir</groupId>

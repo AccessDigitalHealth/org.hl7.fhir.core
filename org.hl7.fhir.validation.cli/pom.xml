@@ -25,6 +25,18 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>ca.uhn.hapi.fhir</groupId>
+            <artifactId>persistence</artifactId>
+            <version>6.5.29-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
+            <version>2.0.1</version>
+        </dependency>
+
         <!-- JUnit Jupiter -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
