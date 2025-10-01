@@ -69,6 +69,7 @@
         <module>org.hl7.fhir.report</module>
         <module>org.hl7.fhir.model</module>
         <module>org.hl7.fhir.support</module>
+        <module>ca.infoway.persistence</module>
     </modules>
 
     <repositories>

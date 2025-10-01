@@ -295,11 +295,10 @@ public class ComparisonRenderer implements IEvaluationContext {
     em.getTransaction().begin();
     cs.persistStructureComparison(comp, em);
     em.getTransaction().commit();
+    cs.exportDbToXlsx(em);
 
     em.close();
     emf.close();
-
-    cs.exportDbToXlsx();
     FileUtilities.stringToFile(csv, file(comp.getId() + "-sd-comparison.csv"));
   }
   

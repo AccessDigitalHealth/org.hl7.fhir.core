@@ -106,7 +106,6 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
 
   }
 
-
   private class ElementDefinitionNode {
     private ElementDefinition def;
     private StructureDefinition src;
@@ -1481,13 +1480,10 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     USCoreComparisonRow usRow = new USCoreComparisonRow();
     if (combined.hasRight()) {
       fillUSCoreRowFromDefinition(usRow, combined.getRight().getDef(), combined);
+      em.persist(usRow);
     }
-
-    em.persist(usRow);
     for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
-      if (!child.getMessages().isEmpty()) {
-        persistElementComp(child, em);
-      }
+      persistUSCoreComp(child, em);
     }
   }
 
@@ -1561,42 +1557,123 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
   }
 
-  public void exportDbToXlsx() throws SQLException, IOException {
-    String jdbcUrl = "jdbc:h2:file:./data/mydb";
-    String user = "sa";
-    String password = "";
+  public void exportDbToXlsx(EntityManager em) throws IOException {
 
-    try (Connection conn = DriverManager.getConnection(jdbcUrl, user, password)) {
+    String jpqlTest = "SELECT r FROM USCoreComparisonRow r";
 
-      String sql = "SELECT * FROM ProfileComparison";
-      PreparedStatement stmt = conn.prepareStatement(sql);
-      ResultSet rs = stmt.executeQuery();
-      Workbook workbook = new XSSFWorkbook();
+    List<USCoreComparisonRow> test = em.createQuery(jpqlTest, USCoreComparisonRow.class).getResultList();
+
+    String jpql = "SELECT DISTINCT new org.hl7.fhir.r5.comparison.ComparisonRowDTO(" +
+      "c.leftPath, " +
+      "c.leftMS, " +
+      "c.leftMin, " +
+      "c.leftMax, " +
+      "c.leftType, " +
+      "c.leftDescription, " +
+      "c.rightPath, " +
+      "c.rightMS, " +
+      "c.rightMin, " +
+      "c.rightMax, " +
+      "c.rightType, " +
+      "c.rightDescription, " +
+      "c.breaks, " +
+      "c.otherBreaks, " +
+      "u.path, " +
+      "u.min, " +
+      "u.max, " +
+      "u.MS, " +
+      "u.description" +
+      ") " +
+      "FROM ComparisonRow c " +
+      "LEFT JOIN USCoreComparisonRow u ON c.leftPath = u.path OR c.rightPath = u.path " +
+      "ORDER BY c.leftPath";
+
+    List<ComparisonRowDTO> results = em.createQuery(jpql, ComparisonRowDTO.class).getResultList();
+
+    try (Workbook workbook = new XSSFWorkbook()) {
       Sheet sheet = workbook.createSheet("Comparison Data");
-      ResultSetMetaData meta = rs.getMetaData();
+
+      String[] headers = {
+        "Left Path", "Left Must Support", "Left Min", "Left Max", "Left Type", "Left Description",
+        "Right Path", "Right Must Support", "Right Min", "Right Max", "Right Type", "Right Description",
+        "Breaks", "Other Breaks",
+        "USCore Path", "USCore Min", "USCore Max", "USCore Must Support", "USCore Description"
+      };
+
+      CellStyle leftHeaderStyle = workbook.createCellStyle();
+      Font headerFont = workbook.createFont();
+      headerFont.setBold(true);
+      leftHeaderStyle.setFont(headerFont);
+      leftHeaderStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
+      leftHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+      CellStyle rightHeaderStyle = workbook.createCellStyle();
+      rightHeaderStyle.cloneStyleFrom(leftHeaderStyle);
+      rightHeaderStyle.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+
+      CellStyle breaksHeaderStyle = workbook.createCellStyle();
+      breaksHeaderStyle.cloneStyleFrom(leftHeaderStyle);
+      breaksHeaderStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
+
+      CellStyle uscoreHeaderStyle = workbook.createCellStyle();
+      uscoreHeaderStyle.cloneStyleFrom(leftHeaderStyle);
+      uscoreHeaderStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+
       org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
-      int columnCount = meta.getColumnCount();
-      for (int i = 1; i <= columnCount; i++) {
-        org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i - 1);
-        cell.setCellValue(meta.getColumnName(i));
-      }
-      int rowIdx = 1;
-      while (rs.next()) {
-        org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowIdx++);
-        for (int i = 1; i <= columnCount; i++) {
-          row.createCell(i - 1).setCellValue(rs.getString(i));
+      for (int i = 0; i < headers.length; i++) {
+        org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+        cell.setCellValue(headers[i]);
+
+        if (i <= 5) { // Left columns (0–5)
+          cell.setCellStyle(leftHeaderStyle);
+        } else if (i <= 11) { // Right columns (6–11)
+          cell.setCellStyle(rightHeaderStyle);
+        } else if (i <= 13) { // Breaks columns (12–13)
+          cell.setCellStyle(breaksHeaderStyle);
+        } else { // USCore columns (14–18)
+          cell.setCellStyle(uscoreHeaderStyle);
         }
       }
-      try (FileOutputStream fileOut = new FileOutputStream("comparison_export.xlsx")) {
-        workbook.write(fileOut);
-      } catch (FileNotFoundException e) {
-        throw new RuntimeException(e);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+
+      int rowIdx = 1;
+      for (ComparisonRowDTO dto : results) {
+        org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowIdx++);
+        int col = 0;
+        row.createCell(col++).setCellValue(dto.getLeftPath());
+        row.createCell(col++).setCellValue(dto.getLeftMS() != null ? dto.getLeftMS().toString() : "");
+        row.createCell(col++).setCellValue(dto.getLeftMin());
+        row.createCell(col++).setCellValue(dto.getLeftMax());
+        row.createCell(col++).setCellValue(dto.getLeftType());
+        row.createCell(col++).setCellValue(dto.getLeftDescription());
+        row.createCell(col++).setCellValue(dto.getRightPath());
+        row.createCell(col++).setCellValue(dto.getRightMS() != null ? dto.getRightMS().toString() : "");
+        row.createCell(col++).setCellValue(dto.getRightMin());
+        row.createCell(col++).setCellValue(dto.getRightMax());
+        row.createCell(col++).setCellValue(dto.getRightType());
+        row.createCell(col++).setCellValue(dto.getRightDescription());
+        row.createCell(col++).setCellValue(dto.getBreaks());
+        row.createCell(col++).setCellValue(dto.getOtherBreaks());
+        row.createCell(col++).setCellValue(dto.getUscorePath());
+        org.apache.poi.ss.usermodel.Cell cell = row.createCell(col++);
+        if (dto.getUscoreMin() != null) {
+          cell.setCellValue(dto.getUscoreMin());
+        }
+        row.createCell(col++).setCellValue(dto.getUscoreMax());
+        row.createCell(col++).setCellValue(dto.getUscoreMS() != null ? dto.getUscoreMS().toString() : "");
+        row.createCell(col++).setCellValue(dto.getUscoreDescription());
       }
 
-      workbook.close();
+      for (int i = 0; i < headers.length; i++) {
+        sheet.autoSizeColumn(i);
+      }
+
+      sheet.createFreezePane(1, 1);
+
+      try (FileOutputStream out = new FileOutputStream("comparison_export.xlsx")) {
+        workbook.write(out);
+      }
     }
+
   }
   public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
     StringBuilder csvData = new StringBuilder();
