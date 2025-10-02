@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 import ca.uhn.fhir.context.FhirContext;
@@ -32,22 +33,34 @@ public class ComparisonService {
 
   private static final FhirContext ctx = FhirContext.forR4();
 
-  private static String findUSCoreComparison(Resource coreResource, String caCoreProfile) throws FileNotFoundException {
+  private static final Map<String, String> usCoreToCoreProfileMapping = Map.ofEntries(
+    Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/observation-ca-core", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-simple-observation"),
+    Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/observation-laboratory-Pathology-ca-core", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-clinical-result"),
+    Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/observation-resultsradiology-ca-core", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-clinical-result"),
+    Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/observation-sexual-orientation", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-sexual-orientation"),
+    Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/observation-socialhistory-ca-core", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-simple-observation"),
+    Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/observation-tobaccouse-ca-core", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-smokingstatus"),
+    Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/condition-ca-core", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition-problems-health-concerns")
+  );
+
+  private static String findUSCoreComparison(String caCoreProfile) throws FileNotFoundException {
     String caTail = caCoreProfile.substring(caCoreProfile.lastIndexOf('/') + 1);
     String baseName = caTail.replace("-ca-core", "");
     InputStream is = ComparisonService.class.getResourceAsStream("/hl7.fhir.us.core-8.0.0-snapshots.tgz");
+
     if (is == null) {
       throw new FileNotFoundException("Resource not found in classpath!");
     }
 
-      try (GZIPInputStream gis = new GZIPInputStream(is);
-         TarArchiveInputStream tis = new TarArchiveInputStream(gis)) {
+    if (usCoreToCoreProfileMapping.containsKey(caCoreProfile)) return usCoreToCoreProfileMapping.get(caCoreProfile);
+
+    try (GZIPInputStream gis = new GZIPInputStream(is);
+       TarArchiveInputStream tis = new TarArchiveInputStream(gis)) {
 
       TarArchiveEntry entry;
       while ((entry = tis.getNextTarEntry()) != null) {
         String name = entry.getName();
         if (name.startsWith("package/StructureDefinition-") && name.endsWith(".json")) {
-          System.out.println("Found StructureDefinition: " + name);
           org.hl7.fhir.r4.model.StructureDefinition sd = (org.hl7.fhir.r4.model.StructureDefinition) ctx.newJsonParser().parseResource(tis);
           String url = sd.getUrl();
           if (url.contains("us-core-" + baseName)) {
@@ -72,7 +85,7 @@ public class ComparisonService {
     if (resRight == null) {
       log.warn("Unable to locate right resource " + right);
     }
-    String usCoreProfile = findUSCoreComparison(resLeft, left);
+    String usCoreProfile = findUSCoreComparison(left);
     if (usCoreProfile != null && resLeft!= null){
       Resource usCoreResource = validator.getContext().fetchResource(Resource.class, usCoreProfile);
       if (resLeft instanceof StructureDefinition && resRight instanceof StructureDefinition) {
