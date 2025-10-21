@@ -6,10 +6,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.sql.Struct;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 import ca.uhn.fhir.context.FhirContext;
@@ -42,7 +43,6 @@ public class ComparisonService {
     Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/observation-tobaccouse-ca-core", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-smokingstatus"),
     Map.entry("http://fhir.infoway-inforoute.ca/cacore/StructureDefinition/condition-ca-core", "http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition-problems-health-concerns")
   );
-
   private static String findUSCoreComparison(String caCoreProfile) throws FileNotFoundException {
     String caTail = caCoreProfile.substring(caCoreProfile.lastIndexOf('/') + 1);
     String baseName = caTail.replace("-ca-core", "");
@@ -72,6 +72,45 @@ public class ComparisonService {
       throw new RuntimeException(e);
     }
 
+    return null;
+  }
+
+  public static void doFullIgLeftRightComparison(ValidationEngine validationEngine, String dest, String leftIg, String rightIg) throws EOperationOutcome, IOException {
+
+    List<StructureDefinition> coreStructureDefinitions = validationEngine.getContext()
+      .listStructures()
+      .stream()
+      .filter(sd -> sd.getSourcePackage() != null &&
+        leftIg.equals(sd.getSourcePackage().getId() + "#" + sd.getSourcePackage().getVersion()))
+      .collect(Collectors.toList());
+
+    List<StructureDefinition> targetStructureDefinitions = validationEngine.getContext()
+      .listStructures()
+      .stream()
+      .filter(sd -> sd.getSourcePackage() != null &&
+        rightIg.equals(sd.getSourcePackage().getId() + "#" + sd.getSourcePackage().getVersion()))
+      .collect(Collectors.toList());
+
+    for (StructureDefinition sd : coreStructureDefinitions){
+      String coreProfileId = sd.getId();
+      String targetProfile = mapCoreProfileToTargetProfile(coreProfileId, targetStructureDefinitions, validationEngine);
+      if (targetProfile != null) log.info("Core: {} ----- Target: {}", coreProfileId, targetProfile);
+      doLeftRightComparison(coreProfileId, targetProfile, dest, validationEngine);
+    }
+  }
+
+  private static String mapCoreProfileToTargetProfile(String coreProfileId, List<StructureDefinition> targetStructures, ValidationEngine validationEngine){
+
+    StructureDefinition coreStructure = (StructureDefinition) validationEngine.getContext().fetchResource(Resource.class, coreProfileId);
+
+    for (StructureDefinition sd: targetStructures){
+      String caCoreBaseName = coreProfileId.replace("-ca-core", "");
+      if (sd.getUrl().toUpperCase().contains(caCoreBaseName.toUpperCase())){
+        if (sd.getType().equals(coreStructure.getType()) && !Objects.equals(sd.getType(), "Extension")){
+          return sd.getUrl();
+        }
+      }
+    }
     return null;
   }
 

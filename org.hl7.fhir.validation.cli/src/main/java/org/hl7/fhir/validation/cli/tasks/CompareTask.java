@@ -1,6 +1,8 @@
 package org.hl7.fhir.validation.cli.tasks;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.utilities.TimeTracker;
@@ -14,6 +16,8 @@ import org.hl7.fhir.validation.service.ValidationService;
 import org.hl7.fhir.validation.cli.Display;
 import org.hl7.fhir.validation.cli.param.Params;
 import org.slf4j.Logger;
+
+import static org.hl7.fhir.validation.cli.param.Params.IMPLEMENTATION_GUIDE;
 
 @Slf4j
 public class CompareTask extends ValidationEngineTask {
@@ -57,7 +61,14 @@ public class CompareTask extends ValidationEngineTask {
     validator.loadPackage(CommonPackages.ID_PUBPACK, null);
     String left = Params.getParam(args, Params.LEFT);
     String right = Params.getParam(args, Params.RIGHT);
-    ComparisonService.doLeftRightComparison(left, right, Params.getParam(args, Params.DESTINATION), validator);
+    List<String> igs = new ArrayList<>();
+    for (int i = 0; i < args.length; i++) {
+      if (IMPLEMENTATION_GUIDE.equals(args[i]) && i + 1 < args.length) {
+        igs.add(args[i + 1]);
+      }
+    }
+    ComparisonService.doFullIgLeftRightComparison(validator, Params.getParam(args, Params.DESTINATION), igs.get(0), igs.get(1));
+    //ComparisonService.doLeftRightComparison(left, right, Params.getParam(args, Params.DESTINATION), validator);
   }
 
   private boolean destinationDirectoryValid(String dest) throws IOException {
