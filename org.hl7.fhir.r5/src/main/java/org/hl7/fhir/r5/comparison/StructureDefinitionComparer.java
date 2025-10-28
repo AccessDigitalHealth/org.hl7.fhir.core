@@ -12,6 +12,7 @@ import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.hl7.fhir.exceptions.DefinitionException;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.hl7.fhir.exceptions.FHIRFormatError;
@@ -286,7 +287,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     checkMustSupportBreak(comp, res, path, left.current().getMustSupport(), right.current().getMustSupport());
     checkBindingBreak(comp, res, path, left.current().getBinding(), right.current().getBinding());
 
-    if (right.path().contains("extension") && left.path().contains("extension")){
+    if ((right.path().contains("extension") && left.path().contains("extension")) || (right.path().contains("[x]") && left.path().contains("[x]")) ){
       List<DefinitionNavigator> leftSlices = left.slices();
       List<DefinitionNavigator> rightSlices = right.slices();
 
@@ -423,7 +424,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       DefinitionNavigator r = findInList(rc, l);
       if (r == null) {
         comp.getUnion().getSnapshot().getElement().add(l.current().copy());
-        res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(new ElementDefinitionNode(l.getStructure(), l.current()), vmI(IssueSeverity.INFORMATION, "Removed this element", path)));
+        //res.getChildren().add(new StructuralMatch<ElementDefinitionNode>(new ElementDefinitionNode(l.getStructure(), l.current()), vmI(IssueSeverity.INFORMATION, "Removed this element", path)));
       } else {
         matchR.add(r);
         StructuralMatch<ElementDefinitionNode> sm = new StructuralMatch<ElementDefinitionNode>(new ElementDefinitionNode(l.getStructure(), l.current()), new ElementDefinitionNode(r.getStructure(), r.current()));
@@ -876,40 +877,102 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       return right;
   }
 
-  private void checkBindingBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, ElementDefinitionBindingComponent left, ElementDefinitionBindingComponent right) {
-    // Core required binding
-   if (BindingStrength.REQUIRED.equals(left.getStrength())) {
-    if (BindingStrength.REQUIRED.equals(right.getStrength())) {
-        if (!left.getValueSet().equals(right.getValueSet())) {
-          vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
-        }
-    } else if (BindingStrength.PREFERRED.equals(right.getStrength())) {
-      vm(IssueSeverity.ERROR, "Binding - Strength(Weaker)", path, comp.getMessages(), res.getMessages());
-     } else {
-      vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
-     }
-    // Core extensible binding
-   } else if (BindingStrength.EXTENSIBLE.equals(left.getStrength())) {
-    if (BindingStrength.EXTENSIBLE.equals(right.getStrength())) {
-        if (!left.getValueSet().equals(right.getValueSet())) {
-          vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
-        }
-    } else if (BindingStrength.PREFERRED.equals(right.getStrength())) {
-      vm(IssueSeverity.ERROR, "Binding - Strength(Weaker)", path, comp.getMessages(), res.getMessages());
-    }
-    else {
-      vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
-     }
-   } else { // Core other binding
-     if (Objects.nonNull(left.getValueSet()) && Objects.nonNull(right.getValueSet())) {
-      if (!left.getValueSet().equals(right.getValueSet())) {
-        if (left.getValueSet().contains("http://hl7.org/fhir/ValueSet/")) vm(IssueSeverity.WARNING, "Binding - Default(NonBreak)", path, comp.getMessages(), res.getMessages());
-        else vm(IssueSeverity.WARNING, "Binding - ValueSet(NonBreak)", path, comp.getMessages(), res.getMessages());
-      }
-     }
-   }
+//  private void checkBindingBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, ElementDefinitionBindingComponent left, ElementDefinitionBindingComponent right) {
+//    // Core required binding
+//   if (BindingStrength.REQUIRED.equals(left.getStrength())) {
+//    if (BindingStrength.REQUIRED.equals(right.getStrength())) {
+//        if (!left.getValueSet().equals(right.getValueSet())) {
+//          vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
+//        }
+//    } else if (BindingStrength.PREFERRED.equals(right.getStrength())) {
+//      vm(IssueSeverity.ERROR, "Binding - Strength(Weaker)", path, comp.getMessages(), res.getMessages());
+//     } else {
+//      vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
+//     }
+//    // Core extensible binding
+//   } else if (BindingStrength.EXTENSIBLE.equals(left.getStrength())) {
+//      if (BindingStrength.REQUIRED.equals(right.getStrength())){
+//        if(left.getValueSet().equals(right.getValueSet())){
+//          vm(IssueSeverity.ERROR, "Binding - Strength(Stronger)", path, comp.getMessages(), res.getMessages());
+//        }
+//      }
+//      if (BindingStrength.EXTENSIBLE.equals(right.getStrength())) {
+//          if (!left.getValueSet().equals(right.getValueSet())) {
+//            vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
+//          }
+//      } else if (BindingStrength.PREFERRED.equals(right.getStrength())) {
+//        vm(IssueSeverity.ERROR, "Binding - Strength(Weaker)", path, comp.getMessages(), res.getMessages());
+//      }
+//      else {
+//        vm(IssueSeverity.ERROR, "Binding - Default", path, comp.getMessages(), res.getMessages());
+//       }
+//   } else { // Core other binding
+//     if (Objects.nonNull(left.getValueSet()) && Objects.nonNull(right.getValueSet())) {
+//      if (!left.getValueSet().equals(right.getValueSet())) {
+//        if (left.getValueSet().contains("http://hl7.org/fhir/ValueSet/")) vm(IssueSeverity.WARNING, "Binding - Default(NonBreak)", path, comp.getMessages(), res.getMessages());
+//        else vm(IssueSeverity.ERROR, "Binding - ValueSet(NonBreak)", path, comp.getMessages(), res.getMessages());
+//      }
+//     }
+//   }
+//
+//   }
 
-   }
+  private static final Map<BindingStrength, Integer> STRENGTH_RANK = Map.of(
+    BindingStrength.EXAMPLE, 0,
+    BindingStrength.PREFERRED, 1,
+    BindingStrength.EXTENSIBLE, 2,
+    BindingStrength.REQUIRED, 3
+  );
+
+  private void checkBindingBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res,
+                                 String path, ElementDefinitionBindingComponent left, ElementDefinitionBindingComponent right) {
+
+    BindingStrength leftStrength = left.getStrength();
+    BindingStrength rightStrength = right.getStrength();
+
+    String leftVS = left.getValueSet();
+    String rightVS = right.getValueSet();
+
+    boolean sameValueSet = Objects.equals(leftVS, rightVS);
+
+    if (sameValueSet) {
+      if (isRightStronger(leftStrength, rightStrength)) {
+        vm(IssueSeverity.WARNING, "Binding - Strength(Stronger)", path, comp.getMessages(), res.getMessages());
+        return; // stop here, since strength check only applies when same VS
+      } else if (isRightWeaker(leftStrength, rightStrength)) {
+        vm(IssueSeverity.ERROR, "Binding - Strength(Weaker)", path, comp.getMessages(), res.getMessages());
+        return;
+      }
+    }
+
+    if (!sameValueSet) {
+      if (BindingStrength.REQUIRED.equals(leftStrength)) {
+          vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
+      } else if (BindingStrength.EXTENSIBLE.equals(leftStrength)) {
+          vm(IssueSeverity.ERROR, "Binding - ValueSet", path, comp.getMessages(), res.getMessages());
+      } else {
+          if (Objects.nonNull(leftVS) && Objects.nonNull(rightVS)) {
+            if (leftVS.contains("http://hl7.org/fhir/ValueSet/")) {
+              vm(IssueSeverity.WARNING, "Binding - Default(NonBreak)", path, comp.getMessages(), res.getMessages());
+            } else {
+              vm(IssueSeverity.ERROR, "Binding - ValueSet(NonBreak)", path, comp.getMessages(), res.getMessages());
+            }
+          }
+      }
+    }
+  }
+
+  /** Returns true if right-hand binding is stronger than left-hand (core). */
+  private boolean isRightStronger(BindingStrength left, BindingStrength right) {
+    if (left == null || right == null) return false;
+    return STRENGTH_RANK.getOrDefault(right, -1) > STRENGTH_RANK.getOrDefault(left, -1);
+  }
+
+  /** Returns true if right-hand binding is weaker than left-hand (core). */
+  private boolean isRightWeaker(BindingStrength left, BindingStrength right) {
+    if (left == null || right == null) return false;
+    return STRENGTH_RANK.getOrDefault(right, -1) < STRENGTH_RANK.getOrDefault(left, -1);
+  }
 
   private void checkMustSupportBreak(ProfileComparison comp, StructuralMatch<ElementDefinitionNode> res, String path, boolean left, boolean right) {
     // "if Core.mustSupport = true and not IG.mustSupport = true" where Core is left and IG is right
@@ -953,9 +1016,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
             break;
           }
         }
-        if (matchFound) {
-          break;
-        }
+        if (!matchFound) break;
       }
       if (!matchFound) {
         vm(IssueSeverity.ERROR, "DataType", path, comp.getMessages(), res.getMessages());
@@ -1286,12 +1347,12 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     // superset:
     if (isPreferredOrExample(left) && isPreferredOrExample(right)) {
       if (right.getStrength() == BindingStrength.PREFERRED && left.getStrength() == BindingStrength.EXAMPLE && !Base.compareDeep(left.getValueSet(), right.getValueSet(), false)) {
-        vm(IssueSeverity.INFORMATION, "Example/preferred bindings differ at "+path+" using binding from "+comp.getRight().getName(), path, comp.getMessages(), res.getMessages());
+        //vm(IssueSeverity.INFORMATION, "Example/preferred bindings differ at "+path+" using binding from "+comp.getRight().getName(), path, comp.getMessages(), res.getMessages());
         subset.setBinding(right);
         superset.setBinding(unionBindings(comp, res, path, left, right, leftSrc, rightSrc));
       } else {
         if ((right.getStrength() != BindingStrength.EXAMPLE || left.getStrength() != BindingStrength.EXAMPLE) && !Base.compareDeep(left.getValueSet(), right.getValueSet(), false) ) {
-          vm(IssueSeverity.INFORMATION, "Example/preferred bindings differ at "+path+" using binding from "+comp.getLeft().getName(), path, comp.getMessages(), res.getMessages());
+          //vm(IssueSeverity.INFORMATION, "Example/preferred bindings differ at "+path+" using binding from "+comp.getLeft().getName(), path, comp.getMessages(), res.getMessages());
         }
         subset.setBinding(left);
         superset.setBinding(unionBindings(comp, res, path, left, right, leftSrc, rightSrc));
@@ -1505,29 +1566,30 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
   }
 
   private void persistElementComp(StructuralMatch<ElementDefinitionNode> combined, EntityManager em) {
-    ComparisonRow row = new ComparisonRow();
 
-    if (combined.hasLeft()) {
-      fillRowFromDefinition(row, combined.getLeft().getDef(), true, combined);
-    }
-    if (combined.hasRight()) {
-      fillRowFromDefinition(row, combined.getRight().getDef(), false, combined);
-    }
+    if (!combined.getMessages().isEmpty()) {
+      ComparisonRow row = new ComparisonRow();
 
-    String breakMessages = sortMessages(combined);
-
-    String[] breaks = breakMessages.split(",", 2);
-    String mainBreak = breaks[0];
-    String otherBreaks = (breaks.length > 1) ? breaks[1] : "";
-
-    row.setBreaks(mainBreak);
-    row.setOtherBreaks(otherBreaks);
-
-    em.persist(row);
-    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
-      if (!child.getMessages().isEmpty()) {
-        persistElementComp(child, em);
+      if (combined.hasLeft()) {
+        fillRowFromDefinition(row, combined.getLeft().getDef(), true, combined);
       }
+      if (combined.hasRight()) {
+        fillRowFromDefinition(row, combined.getRight().getDef(), false, combined);
+      }
+
+      String breakMessages = sortMessages(combined);
+
+      String[] breaks = breakMessages.split(",", 2);
+      String mainBreak = breaks[0];
+      String otherBreaks = (breaks.length > 1) ? breaks[1] : "";
+
+      row.setBreaks(mainBreak);
+      row.setOtherBreaks(otherBreaks);
+
+      em.persist(row);
+    }
+    for (StructuralMatch<ElementDefinitionNode> child : combined.getChildren()) {
+      persistElementComp(child, em);
     }
   }
 
@@ -1557,11 +1619,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     }
   }
 
-  public void exportDbToXlsx(EntityManager em) throws IOException {
-
-    String jpqlTest = "SELECT r FROM USCoreComparisonRow r";
-
-    List<USCoreComparisonRow> test = em.createQuery(jpqlTest, USCoreComparisonRow.class).getResultList();
+  public void exportDbToXlsx(EntityManager em, String leftPackage, String rightPackage) throws IOException {
 
     String jpql = "SELECT DISTINCT new org.hl7.fhir.r5.comparison.ComparisonRowDTO(" +
       "c.leftPath, " +
@@ -1586,7 +1644,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       ") " +
       "FROM ComparisonRow c " +
       "LEFT JOIN USCoreComparisonRow u ON c.leftPath = u.path OR c.rightPath = u.path " +
-      "ORDER BY c.leftPath";
+      "ORDER BY c.rightPath";
 
     List<ComparisonRowDTO> results = em.createQuery(jpql, ComparisonRowDTO.class).getResultList();
 
@@ -1600,9 +1658,17 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
         "USCore Path", "USCore Min", "USCore Max", "USCore Must Support", "USCore Description"
       };
 
-      CellStyle leftHeaderStyle = workbook.createCellStyle();
+      // === Styles ===
       Font headerFont = workbook.createFont();
       headerFont.setBold(true);
+
+      CellStyle groupHeaderStyle = workbook.createCellStyle();
+      groupHeaderStyle.setFont(headerFont);
+      groupHeaderStyle.setAlignment(HorizontalAlignment.CENTER);
+      groupHeaderStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+      groupHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+      CellStyle leftHeaderStyle = workbook.createCellStyle();
       leftHeaderStyle.setFont(headerFont);
       leftHeaderStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
       leftHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -1619,62 +1685,127 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       uscoreHeaderStyle.cloneStyleFrom(leftHeaderStyle);
       uscoreHeaderStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
 
-      org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+      // === Group Header Row ===
+      org.apache.poi.ss.usermodel.Row groupHeaderRow = sheet.createRow(0);
+      for (int i = 0; i < headers.length; i++) {
+        groupHeaderRow.createCell(i);
+      }
+
+      // Merge regions for grouped headers
+      sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 5));   // Left group
+      sheet.addMergedRegion(new CellRangeAddress(0, 0, 6, 11));  // Right group
+      sheet.addMergedRegion(new CellRangeAddress(0, 0, 12, 13)); // Breaks
+      sheet.addMergedRegion(new CellRangeAddress(0, 0, 14, 18)); // USCore
+
+      groupHeaderRow.getCell(0).setCellValue(leftPackage);
+      groupHeaderRow.getCell(6).setCellValue(rightPackage);
+      groupHeaderRow.getCell(12).setCellValue("Breaks");
+      groupHeaderRow.getCell(14).setCellValue("USCore");
+
+      for (int i = 0; i < headers.length; i++) {
+        groupHeaderRow.getCell(i).setCellStyle(groupHeaderStyle);
+      }
+
+      // === Column Headers Row ===
+      org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(1);
       for (int i = 0; i < headers.length; i++) {
         org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
         cell.setCellValue(headers[i]);
 
-        if (i <= 5) { // Left columns (0–5)
+        if (i <= 5) {
           cell.setCellStyle(leftHeaderStyle);
-        } else if (i <= 11) { // Right columns (6–11)
+        } else if (i <= 11) {
           cell.setCellStyle(rightHeaderStyle);
-        } else if (i <= 13) { // Breaks columns (12–13)
+        } else if (i <= 13) {
           cell.setCellStyle(breaksHeaderStyle);
-        } else { // USCore columns (14–18)
+        } else {
           cell.setCellStyle(uscoreHeaderStyle);
         }
       }
 
-      int rowIdx = 1;
+      // Create a reusable wrapText style once before the loop
+      CellStyle wrapStyle = workbook.createCellStyle();
+      wrapStyle.setWrapText(true);
+      wrapStyle.setVerticalAlignment(VerticalAlignment.TOP);
+
+      int rowIdx = 2;
       for (ComparisonRowDTO dto : results) {
         org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowIdx++);
         int col = 0;
+
+        // Left side
         row.createCell(col++).setCellValue(dto.getLeftPath());
         row.createCell(col++).setCellValue(dto.getLeftMS() != null ? dto.getLeftMS().toString() : "");
         row.createCell(col++).setCellValue(dto.getLeftMin());
         row.createCell(col++).setCellValue(dto.getLeftMax());
         row.createCell(col++).setCellValue(dto.getLeftType());
-        row.createCell(col++).setCellValue(dto.getLeftDescription());
+
+        // Left Description (wrap + auto height)
+        org.apache.poi.ss.usermodel.Cell leftDesc = row.createCell(col++);
+        leftDesc.setCellValue(dto.getLeftDescription());
+        leftDesc.setCellStyle(wrapStyle);
+
+        // Right side
         row.createCell(col++).setCellValue(dto.getRightPath());
         row.createCell(col++).setCellValue(dto.getRightMS() != null ? dto.getRightMS().toString() : "");
         row.createCell(col++).setCellValue(dto.getRightMin());
         row.createCell(col++).setCellValue(dto.getRightMax());
         row.createCell(col++).setCellValue(dto.getRightType());
-        row.createCell(col++).setCellValue(dto.getRightDescription());
+
+        // Right Description (wrap + auto height)
+        org.apache.poi.ss.usermodel.Cell rightDesc = row.createCell(col++);
+        rightDesc.setCellValue(dto.getRightDescription());
+        rightDesc.setCellStyle(wrapStyle);
+
+        // Breaks
         row.createCell(col++).setCellValue(dto.getBreaks());
         row.createCell(col++).setCellValue(dto.getOtherBreaks());
+
+        // USCore
         row.createCell(col++).setCellValue(dto.getUscorePath());
+
         org.apache.poi.ss.usermodel.Cell cell = row.createCell(col++);
-        if (dto.getUscoreMin() != null) {
-          cell.setCellValue(dto.getUscoreMin());
-        }
+        if (dto.getUscoreMin() != null) cell.setCellValue(dto.getUscoreMin());
         row.createCell(col++).setCellValue(dto.getUscoreMax());
         row.createCell(col++).setCellValue(dto.getUscoreMS() != null ? dto.getUscoreMS().toString() : "");
-        row.createCell(col++).setCellValue(dto.getUscoreDescription());
+
+        // USCore Description (wrap + auto height)
+        org.apache.poi.ss.usermodel.Cell uscoreDesc = row.createCell(col++);
+        uscoreDesc.setCellValue(dto.getUscoreDescription());
+        uscoreDesc.setCellStyle(wrapStyle);
+
+        // Force Excel to auto-adjust the row height based on wrapped text
+        row.setHeight((short) -1);
+
       }
 
+      // === Auto-size and adjust formatting ===
+      int maxColumnWidth = 10000; // ~100 characters wide
       for (int i = 0; i < headers.length; i++) {
         sheet.autoSizeColumn(i);
+        if (sheet.getColumnWidth(i) > maxColumnWidth) {
+          sheet.setColumnWidth(i, maxColumnWidth);
+        }
       }
 
-      sheet.createFreezePane(1, 1);
+      // Adjust row heights for wrapped text
+      for (org.apache.poi.ss.usermodel.Row row : sheet) {
+        for (org.apache.poi.ss.usermodel.Cell cell : row) {
+          if (cell.getCellStyle().getWrapText()) {
+            row.setHeight((short) -1);
+            break;
+          }
+        }
+      }
+
+      sheet.createFreezePane(2, 2); // freeze both header rows
 
       try (FileOutputStream out = new FileOutputStream("comparison_export.xlsx")) {
         workbook.write(out);
       }
     }
-
   }
+
   public String renderStructureCsv(ProfileComparison comp) throws FHIRException, IOException {
     StringBuilder csvData = new StringBuilder();
     csvData.append("Path,L Must Support,L Min,L Max,L Type,L Description/Constraints,"); // CSV header
@@ -1710,7 +1841,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
       .collect(Collectors.joining("|"));
 
     int index = message.indexOf('|');
-    String messageWithComma= (index == -1) ? message
+    String messageWithComma = (index == -1) ? message
       : message.substring(0, index) + "," + message.substring(index + 1);
 
     return messageWithComma;
@@ -1784,11 +1915,11 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
         .append(bindings.getDescription())
         .append("\n");
     }
-    if (bindings.getAdditional() != null || !bindings.getAdditional().isEmpty()) {
-      bindings.getAdditional().forEach(additional -> {
-        sb.append("Additional Bindings: ").append(additional).append(" Purpose: ").append(additional.getPurpose());
-      });
-    }
+//    if (bindings.getAdditional() != null || !bindings.getAdditional().isEmpty()) {
+//      bindings.getAdditional().forEach(additional -> {
+//        sb.append("Additional Bindings: ").append(additional).append(" Purpose: ").append(additional.getPurpose());
+//      });
+//    }
     return sb.toString();
 
   }
