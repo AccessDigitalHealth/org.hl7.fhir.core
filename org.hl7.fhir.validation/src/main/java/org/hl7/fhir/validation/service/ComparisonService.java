@@ -166,16 +166,16 @@ public class ComparisonService {
     cr.loadTemplates(validator.getContext());
     File htmlFile = cr.render(left, right);
     // only try to open in browser if not in headless mode
-    if (!GraphicsEnvironment.isHeadless()) {
-      try {
-        Desktop.getDesktop().browse(htmlFile.toURI());
-      } catch (UnsupportedOperationException | IOException e) {
-        log.error("Unable to open browser: " + e.getMessage());
-      }
-    } else {
-      log.info("Headless environment detected; skipping browser launch.");
-    }
-    log.info("Done: " + htmlFile.toURI());
+//    if (!GraphicsEnvironment.isHeadless()) {
+////      try {
+////        Desktop.getDesktop().browse(htmlFile.toURI());
+////      } catch (UnsupportedOperationException | IOException e) {
+////        log.error("Unable to open browser: " + e.getMessage());
+////      }
+////    } else {
+////      log.info("Headless environment detected; skipping browser launch.");
+////    }
+////    log.info("Done: " + htmlFile.toURI());
   }
 
 }
