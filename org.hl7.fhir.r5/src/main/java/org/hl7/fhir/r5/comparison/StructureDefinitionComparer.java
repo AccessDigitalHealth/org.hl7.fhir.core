@@ -1798,7 +1798,7 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
         }
       }
 
-      sheet.createFreezePane(2, 2); // freeze both header rows
+      sheet.createFreezePane(1, 2); // freeze both header rows
 
       try (FileOutputStream out = new FileOutputStream("comparison_export.xlsx")) {
         workbook.write(out);
