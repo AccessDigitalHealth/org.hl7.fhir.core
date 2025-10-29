@@ -257,7 +257,7 @@ public class ComparisonRenderer implements IEvaluationContext {
   private void renderProfile(String id, ProfileComparison comp) throws IOException, SQLException {
     String template = templates.get("Profile");
     Map<String, Base> vars = new HashMap<>();
-    StructureDefinitionComparer cs = new StructureDefinitionComparer(session, new ProfileUtilities(session.getContextLeft(), null, session.getPkpLeft()), 
+    StructureDefinitionComparer cs = new StructureDefinitionComparer(session, new ProfileUtilities(session.getContextLeft(), null, session.getPkpLeft()),
         new ProfileUtilities(session.getContextRight(), null, session.getPkpRight()));
     vars.put("left", new StringType(comp.getLeft().present()));
     vars.put("right", new StringType(comp.getRight().present()));
@@ -279,11 +279,11 @@ public class ComparisonRenderer implements IEvaluationContext {
     template = templates.get("Profile-Union");
     cnt = processTemplate(template, "Profile-Union", vars);
     FileUtilities.stringToFile(cnt, file(comp.getId()+"-union.html"));
-    
+
     template = templates.get("Profile-Intersection");
     cnt = processTemplate(template, "Profile-Intersection", vars);
     FileUtilities.stringToFile(cnt, file(comp.getId()+"-intersection.html"));
-    
+
     new org.hl7.fhir.r5.formats.JsonParser().setOutputStyle(OutputStyle.PRETTY).compose(ManagedFileAccess.outStream(Utilities.path(folder, comp.getId() + "-union.json")), comp.getUnion());
     new org.hl7.fhir.r5.formats.JsonParser().setOutputStyle(OutputStyle.PRETTY).compose(ManagedFileAccess.outStream(Utilities.path(folder, comp.getId() + "-intersection.json")), comp.getIntersection());
 
@@ -293,9 +293,12 @@ public class ComparisonRenderer implements IEvaluationContext {
     EntityManager em = emf.createEntityManager();
 
     em.getTransaction().begin();
+
+    String leftPackage = comp.getLeft().getSourcePackage().getId() + "#" + comp.getLeft().getSourcePackage().getVersion();
+    String rightPackage = comp.getRight().getSourcePackage().getId() + "#" + comp.getLeft().getSourcePackage().getVersion();
     cs.persistStructureComparison(comp, em);
     em.getTransaction().commit();
-    cs.exportDbToXlsx(em);
+    cs.exportDbToXlsx(em, leftPackage, rightPackage);
 
     em.close();
     emf.close();
