@@ -38,11 +38,11 @@
         </dependency>
 
         <!-- JUnit Jupiter -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.junit.jupiter</groupId>-->
+<!--            <artifactId>junit-jupiter-api</artifactId>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>net.bytebuddy</groupId>
@@ -50,11 +50,11 @@
             <scope>compile</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.junit.jupiter</groupId>-->
+<!--            <artifactId>junit-jupiter-engine</artifactId>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
         <!-- shoo!
         <dependency>
             <groupId>org.junit.vintage</groupId>
@@ -64,24 +64,24 @@
         </dependency>
         -->
 
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.junit.jupiter</groupId>-->
+<!--            <artifactId>junit-jupiter-params</artifactId>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>org.junit.platform</groupId>
-            <artifactId>junit-platform-launcher</artifactId>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.junit.platform</groupId>-->
+<!--            <artifactId>junit-platform-launcher</artifactId>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>junit</groupId>-->
+<!--            <artifactId>junit</artifactId>-->
+<!--            <version>4.13.2</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
         <!-- org.hl7.fhir.core test-jars -->
         <!--
@@ -90,86 +90,86 @@
             option need to be included here.
         -->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.utilities</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.utilities</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.convertors</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.convertors</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.dstu2</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.dstu2</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.dstu3</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.dstu3</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.dstu2016may</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.dstu2016may</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.r4</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.r4</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.r4b</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.r4b</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.r5</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.r5</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>ca.uhn.hapi.fhir</groupId>
-            <artifactId>org.hl7.fhir.validation</artifactId>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>ca.uhn.hapi.fhir</groupId>-->
+<!--            <artifactId>org.hl7.fhir.validation</artifactId>-->
+<!--            <classifier>tests</classifier>-->
+<!--            <type>test-jar</type>-->
+<!--            <version>${project.version}</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
 
         <!-- /org.hl7.fhir.core test-jars -->
 
@@ -321,150 +321,67 @@
     </dependencies>
     <build>
         <plugins>
-
-            <!--
-            Build a fatjar containing all dependencies
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>unpack-dependencies</id>
-                        <phase>process-classes</phase>
-                        <goals>
-                            <goal>unpack-dependencies</goal>
-                        </goals>
-                        <configuration>
-                            <excludes>**/module-info.class,META-INF/*,**/logback-test.xml</excludes>
-                            <outputDirectory>${project.build.directory}/classes</outputDirectory>
-                            <overWriteReleases>false</overWriteReleases>
-                            <overWriteSnapshots>true</overWriteSnapshots>
-                            <!--<excludeScope>test</excludeScope>-->
-                            <includeScope>compile</includeScope>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>${maven-jar-plugin.version}</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                            <classpathLayoutType>repository</classpathLayoutType>
-                            <mainClass>org.hl7.fhir.validation.cli.ValidatorCli</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
 
-            <!--
-            These two plugins provide quality checks that don't make sense to perform
-            on a fatjar.
-            -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>animal-sniffer-maven-plugin</artifactId>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.basepom.maven</groupId>
-                <artifactId>duplicate-finder-maven-plugin</artifactId>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.0.0</version>
                 <executions>
                     <execution>
-                        <id>default-cli</id>
+                        <phase>package</phase>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>shade</goal>
                         </goals>
+
                         <configuration>
-                            <executable>${env.JAVA_HOME}/bin/java</executable>
-                            <!-- optional -->
-                            <workingDirectory>/tmp</workingDirectory>
-                            <arguments>
-                                <argument>-jar</argument>
-                                <argument>${project.basedir}/target/org.hl7.fhir.validation.cli-${project.version}.jar</argument>
-                            </arguments>
+                            <!-- Set the entry point -->
+                            <transformers>
+                                <!-- Copy manifest and set main class -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>org.hl7.fhir.validation.cli.ValidatorCli</mainClass>
+                                </transformer>
+
+                                <!-- Keep META-INF/services and persistence.xml -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.XmlAppendingTransformer">
+                                    <resource>META-INF/persistence.xml</resource>
+                                </transformer>
+
+                                <!-- Keep module metadata if needed -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
+                            </transformers>
+
+                            <!-- Filters: avoid copying META-INF junk from dependencies -->
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>**/logback-test.xml</exclude>
+                                        <exclude>**/txCache/**</exclude>
+                                        <exclude>**/*-tests.jar</exclude>
+
+                                        <!-- Remove all signature metadata -->
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/*.EC</exclude>
+                                        <exclude>META-INF/*SIGNATURE*</exclude>
+                                        <exclude>META-INF/*.sig</exclude>
+                                        <exclude>META-INF/*.asc</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+
+
+
+                            <!-- Produce a clean final jar -->
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
-        <pluginManagement>
-        	<plugins>
-        		<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
-        		<plugin>
-        			<groupId>org.eclipse.m2e</groupId>
-        			<artifactId>lifecycle-mapping</artifactId>
-        			<version>1.0.0</version>
-        			<configuration>
-        				<lifecycleMappingMetadata>
-        					<pluginExecutions>
-        						<pluginExecution>
-        							<pluginExecutionFilter>
-        								<groupId>
-        									org.apache.maven.plugins
-        								</groupId>
-        								<artifactId>
-        									maven-dependency-plugin
-        								</artifactId>
-        								<versionRange>
-        									[3.0.2,)
-        								</versionRange>
-        								<goals>
-        									<goal>
-        										unpack-dependencies
-        									</goal>
-        								</goals>
-        							</pluginExecutionFilter>
-        							<action>
-        								<ignore></ignore>
-        							</action>
-        						</pluginExecution>
-        					</pluginExecutions>
-        				</lifecycleMappingMetadata>
-        			</configuration>
-        		</plugin>
-                <plugin>
-                    <groupId>org.sonatype.plugins</groupId>
-                    <artifactId>nexus-staging-maven-plugin</artifactId>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-deploy-plugin</artifactId>
-                </plugin>
-                <plugin>
-                    <groupId>org.owasp</groupId>
-                    <artifactId>dependency-check-maven</artifactId>
-                    <configuration>
-                        <suppressionFiles>
-                            <suppressionFile>cve-suppression.xml</suppressionFile>
-                        </suppressionFiles>
-                        <excludes>
-                            <!-- These are our own modules, and contain test archives for zip-slip, which break owasp
-                            archive extraction -->
-                            <exclude>ca.uhn.hapi.fhir:org.hl7.fhir.convertors</exclude>
-                            <exclude>ca.uhn.hapi.fhir:org.hl7.fhir.r4b</exclude>
-                            <exclude>ca.uhn.hapi.fhir:org.hl7.fhir.r5</exclude>
-                            <exclude>ca.uhn.hapi.fhir:org.hl7.fhir.utilities</exclude>
-                            <exclude>ca.uhn.hapi.fhir:org.hl7.fhir.validation</exclude>
-                        </excludes>
-                    </configuration>
-                </plugin>
-        	</plugins>
-        </pluginManagement>
     </build>
+
 
 </project>
