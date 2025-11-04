@@ -332,9 +332,9 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
     //    <pattern[x]><!-- ?? 0..1 * Value must have at least these property values --></pattern[x]>
     superset.setMaxLengthElement(unionMaxLength(left.current().getMaxLength(), right.current().getMaxLength()));
     subset.setMaxLengthElement(intersectMaxLength(left.current().getMaxLength(), right.current().getMaxLength()));
-    if (left.current().hasBinding() || right.current().hasBinding()) {
-      compareBindings(comp, res, subset, superset, path, left.current(), right.current(), left.getStructure(), right.getStructure());
-    }
+//    if (left.current().hasBinding() || right.current().hasBinding()) {
+//      compareBindings(comp, res, subset, superset, path, left.current(), right.current(), left.getStructure(), right.getStructure());
+//    }
     // note these are backwards
     superset.getConstraint().addAll(intersectConstraints(path, left.current().getConstraint(), right.current().getConstraint()));
     subset.getConstraint().addAll(unionConstraints(comp, res, path, left.current().getConstraint(), right.current().getConstraint()));
@@ -1186,16 +1186,16 @@ public class StructureDefinitionComparer extends CanonicalResourceComparer imple
             } else if (derivesFrom(sdnw, sdex, ctxt)) {
               tfound = true;
             } else if (sdnw.getSnapshot().getElement().get(0).getPath().equals(sdex.getSnapshot().getElement().get(0).getPath())) {
-              ResourceComparison cmp = session.compare(sdex, sdnw);
-              if (cmp instanceof ProfileComparison) {
-                ProfileComparison compP = (ProfileComparison) cmp;
-                if (compP.getUnion() != null) {
-                  tfound = true;
-                  ex.addTargetProfile("#"+compP.getId());
-                }
-              } else {
-                // ?
-              }
+//              ResourceComparison cmp = session.compare(sdex, sdnw);
+//              if (cmp instanceof ProfileComparison) {
+//                ProfileComparison compP = (ProfileComparison) cmp;
+//                if (compP.getUnion() != null) {
+//                  tfound = true;
+//                  ex.addTargetProfile("#"+compP.getId());
+//                }
+//              } else {
+//                // ?
+//              }
             }
           }
         }
